@@ -481,10 +481,12 @@ class Klepar:
             self.photo_img = ImageTk.PhotoImage(image=self.resized_img)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_img)
             self.canvas.tag_raise(self.z_slice_text)
+            self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
     def update_info_display(self):
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
+        self.canvas.itemconfigure(self.zoom_text, text=f"Zoom: {self.zoom_level:.2f}")
         if self.click_coordinates:
             try:
                 _, cursor_y, cursor_x = self.calculate_image_coordinates(self.click_coordinates)
@@ -624,6 +626,7 @@ class Klepar:
         mat = np.eye(3)
         mat[0, 0] = mat[1, 1] = scale_factor
         self.mat_affine = np.dot(mat, self.mat_affine)
+        self.zoom_level *= scale_factor
         self.translate(cx, cy)
 
     def zoom(self, delta):
@@ -872,8 +875,8 @@ Released under the MIT license.
         self.canvas.pack(fill='both', expand=True)
 
         self.z_slice_text = self.canvas.create_text(10, 10, anchor=tk.NW, text=f"Z-Slice: {self.z_index}", fill="red")
-
-        self.cursor_pos_text = self.canvas.create_text(10, 30, anchor=tk.NW, text="Cursor Position: (0, 0)", fill="red")
+        self.zoom_text = self.canvas.create_text(10, 30, anchor=tk.NW, text=f"Zoom: {self.zoom_level:.2f}", fill="red")
+        self.cursor_pos_text = self.canvas.create_text(10, 50, anchor=tk.NW, text="Cursor Position: (0, 0)", fill="red")
 
 
         # Bind event handlers
