@@ -11,6 +11,8 @@ tk = "*"
 ttkthemes = "*"
 tifffile = "*"
 h5py = "*"
+scipy = "*"
+scikit-image = "*"
 
 [dev-packages]
 

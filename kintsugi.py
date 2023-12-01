@@ -5,6 +5,8 @@ import tifffile
 from tkinter import filedialog, PhotoImage, ttk
 from PIL import Image, ImageTk
 import numpy as np
+from scipy.spatial import Delaunay
+from skimage.draw import line_aa
 import zarr
 from collections import deque
 import threading
@@ -52,6 +54,9 @@ class Klepar:
         self.slice_cache = {}
         self.format = None
         self.canvas = None
+        self.surface_adjuster_offset = None
+        self.surface_adjuster_nodes = []
+        self.surface_adjuster_tri = None
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
         self.init_ui(arguments)
@@ -156,7 +161,8 @@ class Klepar:
             gc.collect()
             self.mask_data = np.zeros((self.dimz,self.dimy,self.dimx), dtype=np.uint8)
             self.barrier_mask = np.zeros_like(self.mask_data, dtype=np.uint8)
-            self.z_index = 0
+            self.surface_adjuster_offset = np.zeros(shape=(self.dimy, self.dimx), dtype=np.uint16)
+            self.z_index = self.dimz // 2
             if self.voxel_data is not None:
                 self.threshold = [10 for _ in range(self.dimz)]
             self.initial_load = True
@@ -446,6 +452,24 @@ class Klepar:
                 # Overlay the barrier mask on the original image
                 img = Image.alpha_composite(img, self.pred_img)
 
+            if self.surface_adjuster_nodes:
+                nodes = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
+                size = math.ceil(3. / self.zoom_level)
+                for z, y, x in self.surface_adjuster_nodes:
+                    nodes[y-size:y+size, x-size:x+size] = 255  # Red color
+                # also draw triangulation lines between nodes:
+                if self.surface_adjuster_tri is not None:
+                    for corners in self.surface_adjuster_tri.simplices:
+                        for k in range(3):
+                            _, n0y, n0x = self.surface_adjuster_nodes[corners[k]]
+                            _, n1y, n1x = self.surface_adjuster_nodes[corners[(k+1) % 3]]
+                            rr, cc, val = line_aa(n0y, n0x, n1y, n1x)
+                            nodes[rr, cc] = val * 255
+                nodes_img = Image.fromarray(np.stack([np.ones_like(nodes) * 255, np.zeros_like(nodes), np.zeros_like(nodes), nodes], axis=-1), 'RGBA')
+
+                # Overlay the barrier mask on the original image
+                img = Image.alpha_composite(img, nodes_img)
+
                     # Resize the image with aspect ratio
             '''
             if self.initial_load:
@@ -499,7 +523,8 @@ class Klepar:
     def on_canvas_click(self, event):
         self.save_state()
         img_coords = self.calculate_image_coordinates(event)
-        if self.mode.get() == "bucket":
+        mode = self.mode.get()
+        if mode == "bucket":
             if self.flood_fill_active == True:
                 self.update_log("Last flood fill hasn't finished yet.")
             else:
@@ -507,9 +532,32 @@ class Klepar:
                 self.click_coordinates = img_coords
                 self.update_log("Starting flood fill...")
                 self.threaded_flood_fill()  # Assuming threaded_flood_fill is implemented for non-blocking UI
-        elif self.mode.get() == "pencil":
+        elif mode == "pencil":
             # Assuming the pencil (pixel editing) functionality
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
+        elif mode == "surface-adjuster":
+            self.toggle_surface_adjuster_node(img_coords)
+            if len(self.surface_adjuster_nodes) > 2:
+                # triangulation: https://docs.scipy.org/doc/scipy/tutorial/spatial.html
+                points = np.array([(y, x) for _, y, x in self.surface_adjuster_nodes])
+                self.surface_adjuster_tri = Delaunay(points)
+            else:
+                self.surface_adjuster_tri = None
+
+
+    def toggle_surface_adjuster_node(self, img_coords):
+        z, y, x = img_coords
+        for i, (nz, ny, nx) in enumerate(self.surface_adjuster_nodes):
+            if abs(nx - x) < 5 and abs(ny - y) < 5:
+                del self.surface_adjuster_nodes[i]
+                return
+
+        self.surface_adjuster_nodes.append((z, y, x))
+
+    def update_surface_adjuster_offsets():
+        # update self.surface_adjuster_offset
+        pass
+
 
     def calculate_image_coordinates(self, input):
         if input is None:
@@ -779,12 +827,13 @@ Released under the MIT license.
         undo_icon = PhotoImage(file='./icons/undo-64.png')
         brush_icon = PhotoImage(file='./icons/brush-64.png')
         eraser_icon = PhotoImage(file='./icons/eraser-64.png')
+        surface_adjuster_icon = PhotoImage(file='./icons/surface-adjuster-64.png')
         bucket_icon = PhotoImage(file='./icons/bucket-64.png')
         stop_icon = PhotoImage(file='./icons/stop-60.png')
         help_icon = PhotoImage(file='./icons/help-48.png')
         load_mask_icon = PhotoImage(file='./icons/ink-64.png')
 
-        self.mode = tk.StringVar(value="bucket")
+        self.mode = tk.StringVar(value="surface-adjuster")
 
         # Add buttons with icons and tooltips to the toolbar frame
         load_button = ttk.Button(self.toolbar_frame, image=load_icon, command=self.load_data)
@@ -823,6 +872,11 @@ Released under the MIT license.
         eraser_button.image = eraser_icon
         eraser_button.pack(side=tk.LEFT, padx=2)
         self.create_tooltip(eraser_button, "Eraser Tool")
+
+        surface_adjuster_button = ttk.Radiobutton(self.toolbar_frame, image=surface_adjuster_icon, variable=self.mode, value="surface-adjuster")
+        surface_adjuster_button.image = surface_adjuster_icon
+        surface_adjuster_button.pack(side=tk.LEFT, padx=2)
+        self.create_tooltip(surface_adjuster_button, "Surface Adjuster Tool")
 
         self.editing_barrier_var = tk.BooleanVar(value=self.editing_barrier)
         toggle_editing_button = ttk.Checkbutton(self.toolbar_frame, text="Edit Barrier", command=self.toggle_editing_mode, variable=self.editing_barrier_var)
