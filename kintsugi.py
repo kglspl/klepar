@@ -594,6 +594,8 @@ class Klepar:
         else:
             self.scroll(delta)
 
+        self.update_info_display()
+
     def scroll(self, delta):
         if self.voxel_data is not None:
             # Update the z_index based on scroll direction
