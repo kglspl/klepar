@@ -15,6 +15,7 @@ import os
 import gc
 import sys
 import h5py
+from geometer import Plane, Point, Line
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -101,7 +102,7 @@ class Klepar:
             # for i in range(self.dimx):
             #     self.surface_adjuster_offsets[:, i] = i % 10
             if self.surface_adjuster_offsets is not None:
-                indexes = (self.surface_adjuster_offsets[:, :].astype(np.uint8) + self.z_index)[np.newaxis, :, :]
+                indexes = (self.surface_adjuster_offsets[:, :].astype(np.int8) + self.z_index)[np.newaxis, :, :]
                 img_data = np.take_along_axis(self.voxel_data, indexes, axis=0)[0, :, :]
             else:
                 img_data = self.voxel_data[z_index, :, :]
@@ -164,8 +165,7 @@ class Klepar:
                 self.file_name = os.path.basename(selected_path)
 
             self.update_log(f"Data loaded successfully.")
-            self.slice_cache = {}
-            gc.collect()
+            self.clear_slice_cache()
             self.mask_data = np.zeros((self.dimz,self.dimy,self.dimx), dtype=np.uint8)
             self.barrier_mask = np.zeros_like(self.mask_data, dtype=np.uint8)
             self.surface_adjuster_offsets = np.zeros(shape=(self.dimy, self.dimx), dtype=np.float32)
@@ -180,6 +180,10 @@ class Klepar:
             self.update_log(f"Data loaded successfully.")
         except Exception as e:
             self.update_log(f"Error loading data: {e}")
+
+    def clear_slice_cache(self):
+        self.slice_cache = {}
+        gc.collect()
 
     def load_prediction(self):
         if self.voxel_data is None:
@@ -523,7 +527,8 @@ class Klepar:
                 _, cursor_y, cursor_x = self.calculate_image_coordinates(self.click_coordinates)
             except:
                 cursor_x, cursor_y = 0, 0
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y})")
+            offset = self.surface_adjuster_offsets[cursor_y, cursor_x]
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y}, offset {offset})")
 
 
 
@@ -550,6 +555,7 @@ class Klepar:
                 self.surface_adjuster_tri = Delaunay(points)
             else:
                 self.surface_adjuster_tri = None
+            self.update_surface_adjuster_offsets()
 
 
     def toggle_surface_adjuster_node(self, img_coords):
@@ -561,9 +567,26 @@ class Klepar:
 
         self.surface_adjuster_nodes.append((z, y, x))
 
-    def update_surface_adjuster_offsets():
-        # update self.surface_adjuster_offset
-        pass
+    def update_surface_adjuster_offsets(self):
+        # given the triangulation (in self.surface_adjuster_tri) we need to update offsets
+        # this is probably not the most efficient implementation...
+        tri = self.surface_adjuster_tri
+        if tri is None:
+            return
+        print(tri.simplices)
+        nodes = self.surface_adjuster_nodes
+        planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
+        print(planes)
+        for y in range(self.dimy):
+            print('y:', y)
+            for x in range(self.dimx):
+                s = tri.find_simplex([y, x])
+                if s < 0:
+                    continue
+                isect = planes[s].meet(Line(Point(0, y, x), Point(self.dimz, y, x)))
+                self.surface_adjuster_offsets[y, x] = isect.normalized_array[0] - self.dimz // 2
+
+        self.clear_slice_cache()
 
 
     def calculate_image_coordinates(self, input):

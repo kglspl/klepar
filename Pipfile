@@ -13,6 +13,7 @@ tifffile = "*"
 h5py = "*"
 scipy = "*"
 scikit-image = "*"
+geometer = "*"
 
 [dev-packages]
 

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ac4bd4d7788ad103446e56d2c761d5f3e6f5308b653d7c3bd263d6a378b112f3"
+            "sha256": "629ccd567bdcc5f25844a2983be19045e1f6434cf82db5df7ae9d28bce769a93"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -29,6 +29,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==0.19"
+        },
+        "geometer": {
+            "hashes": [
+                "sha256:016aaf625650ea8841812c1a93d6dd65b2a71d188149f646ad84f4d2c2914451",
+                "sha256:7fce8fcf13561df11e9bf14bd884744a34049b2ac62fdaab51aa9ed0ceb6df3b"
+            ],
+            "index": "pypi",
+            "version": "==0.3.5"
         },
         "h5py": {
             "hashes": [
