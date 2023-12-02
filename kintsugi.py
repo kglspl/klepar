@@ -1,4 +1,5 @@
 import argparse
+import json
 import tkinter as tk
 import glob
 import tifffile
@@ -69,6 +70,7 @@ class Klepar:
         parser.add_argument("--h5fs-file", help="full path to H5FS (.h5) file; the first dataset there will be used")
         parser.add_argument("--axes", help="axes sequence in H5FS dataset", choices=['xyz', 'yxz', 'xzy', 'zxy', 'yzx', 'zyx'], default="xyz")
         parser.add_argument("--roi", help="region of interest (in dataset coords and axes!) to be loaded into memory and used, in x0-x1,y0-y1,z0-y1 notation (e.g. '0-1000,0-700,0-50')", default="0-1000,0-700,0-50")
+        parser.add_argument("--surface-adjust-file", help="file from which to load surface adjustment nodes and save them on each change")
         return parser
 
     @staticmethod
@@ -549,6 +551,7 @@ class Klepar:
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
         elif mode == "surface-adjuster":
             self.toggle_surface_adjuster_node(img_coords)
+            self.save_surface_adjust_file()
             if len(self.surface_adjuster_nodes) > 2:
                 # triangulation: https://docs.scipy.org/doc/scipy/tutorial/spatial.html
                 points = np.array([(y, x) for _, y, x in self.surface_adjuster_nodes])
@@ -832,6 +835,24 @@ Released under the MIT license.
         elif type(obj)==h5py._hl.dataset.Dataset:
             return obj.name, obj.shape, obj.dtype, obj.chunks
 
+    def save_surface_adjust_file(self):
+        if not self.surface_adjust_filename:
+            return
+        with open(self.surface_adjust_filename, 'w') as f:
+            json.dump(self.surface_adjuster_nodes, f)
+
+    def load_surface_adjust_file(self):
+        if not self.surface_adjust_filename:
+            return
+        try:
+            with open(self.surface_adjust_filename, 'r') as f:
+                self.surface_adjuster_nodes = json.load(f)
+                # triangulation: https://docs.scipy.org/doc/scipy/tutorial/spatial.html
+                points = np.array([(y, x) for _, y, x in self.surface_adjuster_nodes])
+                self.surface_adjuster_tri = Delaunay(points)
+        except FileNotFoundError:
+            print(f"File not found: {self.surface_adjust_filename}, will create one for saving if needed.")
+
     def init_ui(self, arguments):
         self.root = tk.Tk()
         #self.root.iconbitmap("./icons/favicon.ico")
@@ -1065,6 +1086,9 @@ Released under the MIT license.
 
         if arguments.h5fs_file:
             self.load_data(h5_filename=arguments.h5fs_file, h5_axes_seq=arguments.axes, h5_roi=arguments.roi)
+
+        self.surface_adjust_filename = arguments.surface_adjust_file if arguments.surface_adjust_file else None
+        self.load_surface_adjust_file()
 
         self.root.mainloop()
         self.on_exit()
