@@ -54,7 +54,7 @@ class Klepar:
         self.slice_cache = {}
         self.format = None
         self.canvas = None
-        self.surface_adjuster_offset = None
+        self.surface_adjuster_offsets = None
         self.surface_adjuster_nodes = []
         self.surface_adjuster_tri = None
         arg_parser = self.init_argparse()
@@ -97,7 +97,14 @@ class Klepar:
                 img_data = self.voxel_data[z_index][:, :].astype('uint8')
 
         elif self.format == 'h5fs':
-            img_data = self.voxel_data[z_index, :, :]
+            # debug surface_adjuster_offsets:
+            # for i in range(self.dimx):
+            #     self.surface_adjuster_offsets[:, i] = i % 10
+            if self.surface_adjuster_offsets is not None:
+                indexes = (self.surface_adjuster_offsets[:, :].astype(np.uint8) + self.z_index)[np.newaxis, :, :]
+                img_data = np.take_along_axis(self.voxel_data, indexes, axis=0)[0, :, :]
+            else:
+                img_data = self.voxel_data[z_index, :, :]
 
         img = Image.fromarray(img_data).convert('RGBA')
         self.slice_cache[z_index] = img
@@ -161,7 +168,7 @@ class Klepar:
             gc.collect()
             self.mask_data = np.zeros((self.dimz,self.dimy,self.dimx), dtype=np.uint8)
             self.barrier_mask = np.zeros_like(self.mask_data, dtype=np.uint8)
-            self.surface_adjuster_offset = np.zeros(shape=(self.dimy, self.dimx), dtype=np.uint16)
+            self.surface_adjuster_offsets = np.zeros(shape=(self.dimy, self.dimx), dtype=np.float32)
             self.z_index = self.dimz // 2
             if self.voxel_data is not None:
                 self.threshold = [10 for _ in range(self.dimz)]
