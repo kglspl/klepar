@@ -576,13 +576,15 @@ class Klepar:
         tri = self.surface_adjuster_tri
         if tri is None:
             return
-        print(tri.simplices)
-        nodes = self.surface_adjuster_nodes
+        nodes = np.array(self.surface_adjuster_nodes)
+        min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
+        print('bounds:', min_y, max_y, min_x, max_x)
+
         planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
-        print(planes)
-        for y in range(self.dimy):
+
+        for y in range(min_y, max_y + 1):
             print('y:', y)
-            for x in range(self.dimx):
+            for x in range(min_x, max_x + 1):
                 s = tri.find_simplex([y, x])
                 if s < 0:
                     continue
@@ -590,7 +592,6 @@ class Klepar:
                 self.surface_adjuster_offsets[y, x] = isect.normalized_array[0] - self.dimz // 2
 
         self.clear_slice_cache()
-
 
     def calculate_image_coordinates(self, input):
         if input is None:
