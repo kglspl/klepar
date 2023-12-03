@@ -929,6 +929,7 @@ Released under the MIT license.
 
     def init_ui(self, arguments):
         self.root = tk.Tk()
+        self.root.attributes('-zoomed', True)
         #self.root.iconbitmap("./icons/favicon.ico")
         self.root.title("Vesuvius Klepar")
 
