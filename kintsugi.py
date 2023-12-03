@@ -56,11 +56,13 @@ class Klepar:
         self.show_mask = True  # Default to showing the mask
         self.show_image = True
         self.show_prediction = True
+        self.show_surface_offsets = True
         self.initial_load = True
         self.mat_affine = np.eye(3)
         self.slice_cache = {}
         self.format = None
         self.canvas = None
+        self.stride = 1
         self.surface_adjuster_offsets = None
         self.surface_adjuster_nodes = []
         self.surface_adjuster_tri = None
@@ -77,15 +79,18 @@ class Klepar:
         parser.add_argument("--axes", help="axes sequence in H5FS dataset", choices=['xyz', 'yxz', 'xzy', 'zxy', 'yzx', 'zyx'], default="xyz")
         parser.add_argument("--roi", help="region of interest (in dataset coords and axes!) to be loaded into memory and used, in x0-x1,y0-y1,z0-y1 notation (e.g. '0-1000,0-700,0-50')", default="0-1000,0-700,0-50")
         parser.add_argument("--surface-adjust-file", help="file from which to load surface adjustment nodes and save them on each change")
+        parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
         return parser
 
     @staticmethod
-    def parse_h5_roi_argument(roi):
+    def parse_h5_roi_argument(roi, h5_axes_seq, stride):
         axes_rois = roi.split(',')
-        for axis_roi in axes_rois:
+        for i, axis_roi in enumerate(axes_rois):
             start, end = axis_roi.split('-')
-            yield int(start)
-            yield int(end)
+            # we only apply stride to x and y axis, not to z:
+            stride_for_this_axis = 1 if h5_axes_seq[i] == 'z' else stride
+            yield int(start) // stride_for_this_axis
+            yield int(end) // stride_for_this_axis
 
     def prepare_image_slice(self, z_index):
         """Prepare the image slice for display."""
@@ -109,7 +114,7 @@ class Klepar:
             # debug surface_adjuster_offsets:
             # for i in range(self.dimx):
             #     self.surface_adjuster_offsets[:, i] = i % 10
-            if self.surface_adjuster_offsets is not None:
+            if self.surface_adjuster_offsets is not None and self.show_surface_offsets:
                 indexes = (self.surface_adjuster_offsets[:, :].round().astype(np.int8) + self.z_index)[np.newaxis, :, :]
                 img_data = np.take_along_axis(self.voxel_data, indexes, axis=0)[0, :, :]
             else:
@@ -134,7 +139,7 @@ class Klepar:
                     raise Exception(f"Don't know how to display this dataset dtype ({dataset_type}), sorry")
                 self.dataset = self.h5_data_file.require_dataset(dataset_name, shape=dataset_shape, dtype=dataset_type, chunks=dataset_chunks)
                 self.format = 'h5fs'
-                x0, x1, y0, y1, z0, z1 = list(self.parse_h5_roi_argument(h5_roi))
+                x0, x1, y0, y1, z0, z1 = list(self.parse_h5_roi_argument(h5_roi, h5_axes_seq, self.stride))
                 self.voxel_data = (self.dataset[x0:x1, y0:y1, z0:z1] / 256).astype(np.uint8)
 
                 # we want to get zyx, so we perform swapaxes() until that happens: (kind of a bubblesort of axes)
@@ -829,6 +834,15 @@ class Klepar:
         self.update_display_slice()
         self.update_log(f"Ink predicton {'shown' if self.show_prediction else 'hidden'}.\n")
 
+    def toggle_surface_offsets(self):
+        self.show_surface_offsets = not self.show_surface_offsets
+        # Update the variable for the Checkbutton
+        self.show_surface_offsets_var.set(self.show_surface_offsets)
+        # Update the display to reflect the new state
+        self.clear_slice_cache()
+        self.update_display_slice()
+        self.update_log(f"Surface offsets {'shown' if self.show_surface_offsets else 'hidden'}.\n")
+
     def toggle_editing_mode(self):
         # Toggle between editing label and barrier
         self.editing_barrier = not self.editing_barrier
@@ -1100,6 +1114,7 @@ Released under the MIT license.
         self.show_barrier_var = tk.BooleanVar(value=self.show_barrier)
         self.show_image_var = tk.BooleanVar(value=self.show_image)
         self.show_prediction_var = tk.BooleanVar(value=self.show_prediction)
+        self.show_surface_offsets_var = tk.BooleanVar(value=self.show_surface_offsets)
 
         # Create a frame to hold the toggle buttons
         toggle_frame = tk.Frame(self.root)
@@ -1113,6 +1128,9 @@ Released under the MIT license.
         toggle_barrier_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
         toggle_prediction_button = ttk.Checkbutton(toggle_frame, text="Prediction", command=self.toggle_prediction, variable=self.show_prediction_var)
+        toggle_prediction_button.pack(side=tk.LEFT, padx=5, anchor='s')
+
+        toggle_prediction_button = ttk.Checkbutton(toggle_frame, text="Surface offsets", command=self.toggle_surface_offsets, variable=self.show_surface_offsets_var)
         toggle_prediction_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
         # Slider for adjusting the alpha (opacity)
@@ -1180,6 +1198,8 @@ Released under the MIT license.
         log_scrollbar = tk.Scrollbar(log_frame, command=self.log_text.yview)
         log_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.log_text['yscrollcommand'] = log_scrollbar.set
+
+        self.stride = max(1, int(arguments.stride)) if arguments.stride else 1
 
         if arguments.h5fs_file:
             self.load_data(h5_filename=arguments.h5fs_file, h5_axes_seq=arguments.axes, h5_roi=arguments.roi)
