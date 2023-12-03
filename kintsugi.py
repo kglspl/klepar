@@ -108,7 +108,7 @@ class Klepar:
             # for i in range(self.dimx):
             #     self.surface_adjuster_offsets[:, i] = i % 10
             if self.surface_adjuster_offsets is not None:
-                indexes = (self.surface_adjuster_offsets[:, :].astype(np.int8) + self.z_index)[np.newaxis, :, :]
+                indexes = (self.surface_adjuster_offsets[:, :].round().astype(np.int8) + self.z_index)[np.newaxis, :, :]
                 img_data = np.take_along_axis(self.voxel_data, indexes, axis=0)[0, :, :]
             else:
                 img_data = self.voxel_data[z_index, :, :]
