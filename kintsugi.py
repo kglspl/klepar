@@ -1,23 +1,26 @@
 import argparse
+from collections import deque
+import gc
+import glob
 import itertools
 import json
-import tkinter as tk
-import glob
-import tifffile
-from tkinter import filedialog, PhotoImage, ttk
-from PIL import Image, ImageTk
-import numpy as np
-from scipy.spatial import Delaunay
-from skimage.draw import line_aa
-import zarr
-from collections import deque
-import threading
 import math
 import os
-import gc
 import sys
-import h5py
+import threading
+import time
+
 from geometer import Plane, Point, Line
+import h5py
+import numpy as np
+from PIL import Image, ImageTk
+from scipy.spatial import Delaunay
+from skimage.draw import line_aa
+import tifffile
+import tkinter as tk
+from tkinter import filedialog, PhotoImage, ttk
+import zarr
+
 
 Image.MAX_IMAGE_PIXELS = None
 
