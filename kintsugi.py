@@ -624,8 +624,9 @@ class Klepar:
 
         planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
 
+        progress = ProgressPrinter(min_y, max_y, 'Calculating surface adjuster offset')
         for y in range(min_y, max_y + 1):
-            print('y:', y)
+            progress.progress(y)
             for x in range(min_x, max_x + 1):
                 s = tri.find_simplex([y, x])
                 if s < 0:
@@ -1136,6 +1137,29 @@ Released under the MIT license.
 
         self.root.mainloop()
         self.on_exit()
+
+
+class ProgressPrinter:
+    def __init__(self, min_n, max_n, label, interval=3):
+        self.start_time = time.time()
+        self.last_print_time = None
+        self.min_n = min_n
+        self.max_n = max_n
+        self.label = label
+        self.interval = interval
+
+    def progress(self, n):
+        now = time.time()
+        if not self.last_print_time or now - self.last_print_time > self.interval:
+            if not self.last_print_time:
+                eta = .0
+                percent_done = 0
+            else:
+                eta = (self.max_n - n) * (self.last_print_time - self.start_time) / (n - self.min_n)
+                percent_done = 100. * ((n - self.min_n) / (self.max_n - self.min_n))
+            print(f'{self.label}: {n} ({self.min_n} -> {self.max_n}), progress: {percent_done:.2f}%, ETA: {eta:.2f}s')
+            self.last_print_time = now
+
 
 if __name__ == "__main__":
     editor = Klepar()
