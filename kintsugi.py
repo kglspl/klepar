@@ -589,8 +589,8 @@ class Klepar:
             else:
                 self.surface_adjuster_tri = None
 
-            if bounds_affected is not None:
-                self.update_surface_adjuster_offsets(bounds_affected)
+            # if bounds_affected is not None:
+            #     self.update_surface_adjuster_offsets(bounds_affected)  # slooooow
 
 
     def near_existing_surface_adjuster_node(self, img_coords):
@@ -622,6 +622,9 @@ class Klepar:
         nodes_affected = np.array([self.surface_adjuster_nodes[i] for i in their_nodes_indexes])
         min_y, max_y, min_x, max_x = nodes_affected[:, 1].min(), nodes_affected[:, 1].max(), nodes_affected[:, 2].min(), nodes_affected[:, 2].max()
         return min_y, max_y, min_x, max_x
+
+    def threaded_update_surface_adjuster_offsets(self):
+        self.update_surface_adjuster_offsets(None)
 
     def update_surface_adjuster_offsets(self, bounds_affected):
         # given the triangulation (in self.surface_adjuster_tri) we need to update offsets
@@ -933,10 +936,11 @@ Released under the MIT license.
         load_icon = PhotoImage(file='./icons/open-64.png')
         save_icon = PhotoImage(file='./icons/save-64.png')
         prediction_icon = PhotoImage(file='./icons/prediction-64.png')
-        undo_icon = PhotoImage(file='./icons/undo-64.png')
+        # undo_icon = PhotoImage(file='./icons/undo-64.png')
         brush_icon = PhotoImage(file='./icons/brush-64.png')
         eraser_icon = PhotoImage(file='./icons/eraser-64.png')
         surface_adjuster_icon = PhotoImage(file='./icons/surface-adjuster-64.png')
+        surface_adjuster_offsets_icon = PhotoImage(file='./icons/surface-update-offsets-64.png')
         bucket_icon = PhotoImage(file='./icons/bucket-64.png')
         stop_icon = PhotoImage(file='./icons/stop-60.png')
         help_icon = PhotoImage(file='./icons/help-48.png')
@@ -965,10 +969,15 @@ Released under the MIT license.
         load_prediction.pack(side=tk.LEFT, padx=2)
         self.create_tooltip(load_prediction, "Load Ink Prediction")
 
-        undo_button = ttk.Button(self.toolbar_frame, image=undo_icon, command=self.undo_last_action)
-        undo_button.image = undo_icon
-        undo_button.pack(side=tk.LEFT, padx=2)
-        self.create_tooltip(undo_button, "Undo Last Action")
+        # undo_button = ttk.Button(self.toolbar_frame, image=undo_icon, command=self.undo_last_action)
+        # undo_button.image = undo_icon
+        # undo_button.pack(side=tk.LEFT, padx=2)
+        # self.create_tooltip(undo_button, "Undo Last Action")
+
+        surface_adjuster_offsets_button = ttk.Button(self.toolbar_frame, image=surface_adjuster_offsets_icon, command=self.threaded_update_surface_adjuster_offsets)
+        surface_adjuster_offsets_button.image = surface_adjuster_offsets_icon
+        surface_adjuster_offsets_button.pack(side=tk.LEFT, padx=2)
+        self.create_tooltip(surface_adjuster_offsets_button, "Update Surface Adjuster Offsets")
 
         # Brush tool button
         brush_button = ttk.Radiobutton(self.toolbar_frame, image=brush_icon, variable=self.mode, value="pencil")
@@ -1147,7 +1156,6 @@ Released under the MIT license.
 
         self.surface_adjust_filename = arguments.surface_adjust_file if arguments.surface_adjust_file else None
         self.load_surface_adjust_file()
-        self.update_surface_adjuster_offsets(None)
 
         self.root.mainloop()
         self.on_exit()
