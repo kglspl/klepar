@@ -7,6 +7,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 import threading
 import time
 
@@ -911,7 +912,13 @@ Released under the MIT license.
 
     def save_surface_adjust_file(self):
         if not self.surface_adjust_filename:
+            f = tempfile.NamedTemporaryFile(mode="w",suffix=".json",prefix="surface-")
+            self.surface_adjust_filename = f.name
+            self.update_log(f"File not specified, saving to {f.name}")
+            json.dump(self.surface_adjuster_nodes, f)
+            f.close()
             return
+
         with open(self.surface_adjust_filename, 'w') as f:
             json.dump(self.surface_adjuster_nodes, f)
 
