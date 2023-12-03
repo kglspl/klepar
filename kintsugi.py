@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import json
 import tkinter as tk
 import glob
@@ -550,34 +551,70 @@ class Klepar:
             # Assuming the pencil (pixel editing) functionality
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
         elif mode == "surface-adjuster":
-            self.toggle_surface_adjuster_node(img_coords)
+            bounds_affected = None
+            # Toggle node:
+            existing_index = self.near_existing_surface_adjuster_node(img_coords)
+            if existing_index is not None:
+                bounds_affected = self.remove_surface_adjuster_node(existing_index)
+            else:
+                self.add_surface_adjuster_node(img_coords)
+
             self.save_surface_adjust_file()
+
             if len(self.surface_adjuster_nodes) > 2:
                 # triangulation: https://docs.scipy.org/doc/scipy/tutorial/spatial.html
                 points = np.array([(y, x) for _, y, x in self.surface_adjuster_nodes])
                 self.surface_adjuster_tri = Delaunay(points)
+
+                if existing_index is not None:  # if we added a new node, we need to get the affected bounds here, when we have the new triangulation
+                    new_node_index = len(self.surface_adjuster_nodes) - 1
+                    bounds_affected = self.get_surface_adjuster_bounds_affected_on_toggle(new_node_index)
             else:
                 self.surface_adjuster_tri = None
-            self.update_surface_adjuster_offsets()
+
+            if bounds_affected is not None:
+                self.update_surface_adjuster_offsets(bounds_affected)
 
 
-    def toggle_surface_adjuster_node(self, img_coords):
+    def near_existing_surface_adjuster_node(self, img_coords):
         z, y, x = img_coords
         for i, (nz, ny, nx) in enumerate(self.surface_adjuster_nodes):
             if abs(nx - x) < 5 and abs(ny - y) < 5:
-                del self.surface_adjuster_nodes[i]
-                return
+                return i
 
+        return None
+
+    def remove_surface_adjuster_node(self, existing_index):
+        # before deleting node, find its past neighbors, then extract affected bounds so that we can refresh just that part of offsets array:
+        if self.surface_adjuster_tri:
+            bounds_affected = self.get_surface_adjuster_bounds_affected_on_toggle(existing_index)
+
+        del self.surface_adjuster_nodes[existing_index]
+        return bounds_affected
+
+    def add_surface_adjuster_node(self, img_coords):
+        z, y, x = img_coords
         self.surface_adjuster_nodes.append((z, y, x))
 
-    def update_surface_adjuster_offsets(self):
+    def get_surface_adjuster_bounds_affected_on_toggle(self, node_index):
+        # As an optimization, we only update offsets where they changed, that is, with bounds from its neighbors and itself:
+        # - if we remove an existing node: before deleting it
+        # - if we add a new node: after adding it
+        affected_triangles = [t for t in self.surface_adjuster_tri.simplices if node_index in t]
+        their_nodes_indexes = set(itertools.chain.from_iterable(affected_triangles))
+        nodes_affected = np.array([self.surface_adjuster_nodes[i] for i in their_nodes_indexes])
+        min_y, max_y, min_x, max_x = nodes_affected[:, 1].min(), nodes_affected[:, 1].max(), nodes_affected[:, 2].min(), nodes_affected[:, 2].max()
+        return min_y, max_y, min_x, max_x
+
+    def update_surface_adjuster_offsets(self, bounds_affected):
         # given the triangulation (in self.surface_adjuster_tri) we need to update offsets
         # this is probably not the most efficient implementation...
         tri = self.surface_adjuster_tri
         if tri is None:
             return
         nodes = np.array(self.surface_adjuster_nodes)
-        min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
+        # min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
+        min_y, max_y, min_x, max_x = bounds_affected
         print('bounds:', min_y, max_y, min_x, max_x)
 
         planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
