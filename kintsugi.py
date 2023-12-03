@@ -470,22 +470,36 @@ class Klepar:
                 img = Image.alpha_composite(img, self.pred_img)
 
             if self.surface_adjuster_nodes:
-                nodes = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
-                size = math.ceil(3. / self.zoom_level)
+                # we want to draw nodes in different color depending on z
+                red = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
+                green = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
+                blue = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
+                mask = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
+                rect_size = math.ceil(5. / self.zoom_level)
                 for z, y, x in self.surface_adjuster_nodes:
-                    nodes[y-size:y+size, x-size:x+size] = 255  # Red color
-                # also draw triangulation lines between nodes:
+                    if z <= self.z_index:
+                        luminosity = round((z / max(self.z_index, 1)) * 255)
+                        red[y-rect_size:y+rect_size, x-rect_size:x+rect_size] = luminosity
+                    if z >= self.z_index:
+                        luminosity = round((self.z_index / max(z, 1)) * 255)
+                        green[y-rect_size:y+rect_size, x-rect_size:x+rect_size] = luminosity
+                    blue[y-rect_size:y+rect_size, x-rect_size:x+rect_size] = 255 if z == self.z_index else luminosity // 2
+                    mask[y-rect_size:y+rect_size, x-rect_size:x+rect_size] = 255
+
+                nodes_img = Image.fromarray(np.stack([red, green, blue, mask], axis=-1), 'RGBA')
+                img = Image.alpha_composite(img, nodes_img)
+
+                # draw triangulation lines between nodes:
+                mask = np.zeros((self.dimy, self.dimx), dtype=np.uint8)
                 if self.surface_adjuster_tri is not None:
                     for corners in self.surface_adjuster_tri.simplices:
                         for k in range(3):
                             _, n0y, n0x = self.surface_adjuster_nodes[corners[k]]
                             _, n1y, n1x = self.surface_adjuster_nodes[corners[(k+1) % 3]]
                             rr, cc, val = line_aa(n0y, n0x, n1y, n1x)
-                            nodes[rr, cc] = val * 255
-                nodes_img = Image.fromarray(np.stack([np.ones_like(nodes) * 255, np.zeros_like(nodes), np.zeros_like(nodes), nodes], axis=-1), 'RGBA')
-
-                # Overlay the barrier mask on the original image
-                img = Image.alpha_composite(img, nodes_img)
+                            mask[rr, cc] = val * 255
+                lines_img = Image.fromarray(np.stack([mask, mask, np.zeros_like(mask), mask], axis=-1), 'RGBA')
+                img = Image.alpha_composite(img, lines_img)
 
                     # Resize the image with aspect ratio
             '''
