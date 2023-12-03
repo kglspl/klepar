@@ -66,6 +66,7 @@ class Klepar:
         self.surface_adjuster_offsets = None
         self.surface_adjuster_nodes = []
         self.surface_adjuster_tri = None
+        self.roi = {}
         self._threaded_update_surface_adjuster_offsets_running = False
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
@@ -82,15 +83,17 @@ class Klepar:
         parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
         return parser
 
-    @staticmethod
-    def parse_h5_roi_argument(roi, h5_axes_seq, stride):
+    def parse_h5_roi_argument(self, roi, h5_axes_seq, stride):
         axes_rois = roi.split(',')
         for i, axis_roi in enumerate(axes_rois):
             start, end = axis_roi.split('-')
             # we only apply stride to x and y axis, not to z:
-            stride_for_this_axis = 1 if h5_axes_seq[i] == 'z' else stride
+            axis = h5_axes_seq[i]
+            stride_for_this_axis = 1 if axis == 'z' else stride
             yield int(start) // stride_for_this_axis
             yield int(end) // stride_for_this_axis
+            # save data for displaying on info screen:
+            self.roi[axis] = (int(start), int(end))
 
     def prepare_image_slice(self, z_index):
         """Prepare the image slice for display."""
@@ -555,8 +558,11 @@ class Klepar:
             except:
                 cursor_x, cursor_y = 0, 0
             offset = self.surface_adjuster_offsets[cursor_y, cursor_x]
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y}, offset {offset})")
+            # self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y}, offset {offset})")
 
+            scroll_x = cursor_x * self.stride + self.roi['x'][0]
+            scroll_y = cursor_y * self.stride + self.roi['y'][0]
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Scroll Position: ({scroll_x}, {scroll_y}, offset {offset})")
 
 
     def on_canvas_click(self, event):
