@@ -616,8 +616,10 @@ class Klepar:
         if tri is None:
             return
         nodes = np.array(self.surface_adjuster_nodes)
-        # min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
-        min_y, max_y, min_x, max_x = bounds_affected
+        if bounds_affected is None:
+            min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
+        else:
+            min_y, max_y, min_x, max_x = bounds_affected
         print('bounds:', min_y, max_y, min_x, max_x)
 
         planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
@@ -1130,6 +1132,7 @@ Released under the MIT license.
 
         self.surface_adjust_filename = arguments.surface_adjust_file if arguments.surface_adjust_file else None
         self.load_surface_adjust_file()
+        self.update_surface_adjuster_offsets(None)
 
         self.root.mainloop()
         self.on_exit()
