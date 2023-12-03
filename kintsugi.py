@@ -63,6 +63,7 @@ class Klepar:
         self.surface_adjuster_offsets = None
         self.surface_adjuster_nodes = []
         self.surface_adjuster_tri = None
+        self._threaded_update_surface_adjuster_offsets_running = False
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
         self.init_ui(arguments)
@@ -624,7 +625,17 @@ class Klepar:
         return min_y, max_y, min_x, max_x
 
     def threaded_update_surface_adjuster_offsets(self):
-        self.update_surface_adjuster_offsets(None)
+        if self.surface_adjuster_tri is None:
+            self.update_log("No surface adjuster triangulation available")
+            return
+
+        if self._threaded_update_surface_adjuster_offsets_running:
+            self.update_log("Surface adjuster offsets already updating, ignoring")
+            return
+
+        self._threaded_update_surface_adjuster_offsets_running = True
+        thread = threading.Thread(target=self.update_surface_adjuster_offsets, args=(None,))
+        thread.start()
 
     def update_surface_adjuster_offsets(self, bounds_affected):
         # given the triangulation (in self.surface_adjuster_tri) we need to update offsets
@@ -637,11 +648,11 @@ class Klepar:
             min_y, max_y, min_x, max_x = nodes[:, 1].min(), nodes[:, 1].max(), nodes[:, 2].min(), nodes[:, 2].max()
         else:
             min_y, max_y, min_x, max_x = bounds_affected
-        print('bounds:', min_y, max_y, min_x, max_x)
+        # print('bounds:', min_y, max_y, min_x, max_x)
 
         planes = [Plane(Point(*nodes[t[0]]), Point(*nodes[t[1]]), Point(*nodes[t[2]])) for t in tri.simplices]
 
-        progress = ProgressPrinter(min_y, max_y, 'Calculating surface adjuster offset')
+        progress = ProgressPrinter(min_y, max_y, 'Calculating surface adjuster offset', print_=self.update_log)
         for y in range(min_y, max_y + 1):
             progress.progress(y)
             for x in range(min_x, max_x + 1):
@@ -652,6 +663,8 @@ class Klepar:
                 self.surface_adjuster_offsets[y, x] = isect.normalized_array[0] - self.dimz // 2
 
         self.clear_slice_cache()
+        self._threaded_update_surface_adjuster_offsets_running = False
+        self.update_log("Surface adjuster offsets updated.")
 
     def calculate_image_coordinates(self, input):
         if input is None:
@@ -1162,13 +1175,14 @@ Released under the MIT license.
 
 
 class ProgressPrinter:
-    def __init__(self, min_n, max_n, label, interval=3):
+    def __init__(self, min_n, max_n, label, interval=3, print_=None):
         self.start_time = time.time()
         self.last_print_time = None
         self.min_n = min_n
         self.max_n = max_n
         self.label = label
         self.interval = interval
+        self.print_ = print if print_ is None else print_
 
     def progress(self, n):
         now = time.time()
@@ -1179,7 +1193,7 @@ class ProgressPrinter:
             else:
                 eta = (self.max_n - n) * (self.last_print_time - self.start_time) / (n - self.min_n)
                 percent_done = 100. * ((n - self.min_n) / (self.max_n - self.min_n))
-            print(f'{self.label}: {n} ({self.min_n} -> {self.max_n}), progress: {percent_done:.2f}%, ETA: {eta:.2f}s')
+            self.print_(f'{self.label}: {n} ({self.min_n} -> {self.max_n}), progress: {percent_done:.2f}%, ETA: {eta:.2f}s')
             self.last_print_time = now
 
 
