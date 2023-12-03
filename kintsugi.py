@@ -569,7 +569,7 @@ class Klepar:
                 points = np.array([(y, x) for _, y, x in self.surface_adjuster_nodes])
                 self.surface_adjuster_tri = Delaunay(points)
 
-                if existing_index is not None:  # if we added a new node, we need to get the affected bounds here, when we have the new triangulation
+                if existing_index is None:  # if we added a new node, we need to get the affected bounds here, when we have the new triangulation
                     new_node_index = len(self.surface_adjuster_nodes) - 1
                     bounds_affected = self.get_surface_adjuster_bounds_affected_on_toggle(new_node_index)
             else:
