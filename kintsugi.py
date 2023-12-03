@@ -665,7 +665,8 @@ class Klepar:
 
         self.clear_slice_cache()
         self._threaded_update_surface_adjuster_offsets_running = False
-        self.update_log("Surface adjuster offsets updated.")
+        self.save_surface_adjust_offsets()
+        self.update_log("Surface adjuster offsets updated and saved.")
 
     def calculate_image_coordinates(self, input):
         if input is None:
@@ -933,6 +934,14 @@ Released under the MIT license.
                 self.surface_adjuster_tri = Delaunay(points)
         except FileNotFoundError:
             print(f"File not found: {self.surface_adjust_filename}, will create one for saving if needed.")
+
+    def save_surface_adjust_offsets(self):
+        filename = f'{self.surface_adjust_filename}.offsets.h5'
+        self.update_log(f"Saving offsets to {filename}")
+        with h5py.File(filename, 'a') as f:
+            shape = (self.dimy, self.dimx)
+            dset = f.require_dataset("offsets", shape=shape, dtype=np.float32)
+            dset[:, :] = self.surface_adjuster_offsets
 
     def init_ui(self, arguments):
         self.root = tk.Tk()
