@@ -145,6 +145,8 @@ class Klepar:
                 x0, x1, y0, y1, z0, z1 = list(self.parse_h5_roi_argument(h5_roi, h5_axes_seq, self.stride))
                 self.voxel_data = (self.dataset[x0:x1, y0:y1, z0:z1] / 256).astype(np.uint8)
 
+                self.dataset_shape_xyz = (dataset_shape[h5_axes_seq.index('x')], dataset_shape[h5_axes_seq.index('y')], dataset_shape[h5_axes_seq.index('z')])
+
                 # we want to get zyx, so we perform swapaxes() until that happens: (kind of a bubblesort of axes)
                 h5_axes_seq = [*h5_axes_seq]  # convert to list of characters
                 if h5_axes_seq[0] != 'z':
@@ -581,6 +583,9 @@ class Klepar:
             # Assuming the pencil (pixel editing) functionality
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
         elif mode == "surface-adjuster":
+            if self.show_surface_offsets:
+                self.update_log("Careful, you are seeing offsets, ignoring click.")
+                return
             bounds_affected = None
             # Toggle node:
             existing_index = self.near_existing_surface_adjuster_node(img_coords)
@@ -957,11 +962,15 @@ Released under the MIT license.
 
     def save_surface_adjust_offsets(self):
         filename = f'{self.surface_adjust_filename}.offsets.h5'
-        self.update_log(f"Saving offsets to {filename}")
         with h5py.File(filename, 'a') as f:
-            shape = (self.dimy, self.dimx)
+            shape = (self.dataset_shape_xyz[0], self.dataset_shape_xyz[1])
             dset = f.require_dataset("offsets", shape=shape, dtype=np.float32)
-            dset[:, :] = self.surface_adjuster_offsets
+            print('dset.shape', dset.shape)
+            print('self.surface_adjuster_offsets.shape', self.surface_adjuster_offsets.shape)
+            x0 = self.roi['x'][0] // self.stride
+            y0 = self.roi['y'][0] // self.stride
+            dset[x0:x0 + self.surface_adjuster_offsets.shape[1], y0:y0 + self.surface_adjuster_offsets.shape[0]] = self.surface_adjuster_offsets.T  # output: x, y
+        self.update_log(f"Saved offsets to {filename}")
 
     def init_ui(self, arguments):
         self.root = tk.Tk()
