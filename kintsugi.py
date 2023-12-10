@@ -580,6 +580,13 @@ class Klepar:
             c.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
             c.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
 
+        self.canvas_z.itemconfigure(self.canvas_z_text, text=f"Z: {scroll_z}")
+        self.canvas_x.itemconfigure(self.canvas_x_text, text=f"X: {scroll_x}")
+        self.canvas_y.itemconfigure(self.canvas_y_text, text=f"Y: {scroll_y}")
+        self.canvas_z.tag_raise(self.canvas_z_text)
+        self.canvas_x.tag_raise(self.canvas_x_text)
+        self.canvas_y.tag_raise(self.canvas_y_text)
+
     def update_info_display(self):
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
         self.canvas.itemconfigure(self.zoom_text, text=f"Zoom: {self.zoom_level:.2f}")
@@ -589,14 +596,13 @@ class Klepar:
             except:
                 cursor_x, cursor_y = 0, 0
             offset = self.surface_adjuster_offsets[cursor_y, cursor_x]
-            # self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y}, offset {offset})")
 
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Surface Position: ({surface_x}, {surface_y}, offset {offset})")
+
             scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y)
             scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Scroll Position: ({surface_x}, {surface_y}, offset {offset}, 3D: {scroll_x} / {scroll_y} / {scroll_z})")
-
             self.update_nav3d_display(scroll_x, scroll_y, scroll_z)
 
     def on_canvas_click(self, event):
@@ -1149,13 +1155,17 @@ Released under the MIT license.
         self.canvas_x.pack(fill='both', expand=True)
         self.canvas_y = tk.Canvas(self.nav3d_frame, bg='white')
         self.canvas_y.pack(fill='both', expand=True)
+        self.canvas_z_text = self.canvas_z.create_text(10, 10, anchor=tk.NW, text="Z: /", fill="red", font=('Helvetica', 15, 'bold'))
+        self.canvas_x_text = self.canvas_x.create_text(10, 10, anchor=tk.NW, text="X: /", fill="red", font=('Helvetica', 15, 'bold'))
+        self.canvas_y_text = self.canvas_y.create_text(10, 10, anchor=tk.NW, text="Y: /", fill="red", font=('Helvetica', 15, 'bold'))
+
 
         self.canvas = tk.Canvas(self.center_frame, bg='white')
         self.canvas.pack(fill='both', expand=True)
 
-        self.z_slice_text = self.canvas.create_text(10, 10, anchor=tk.NW, text=f"Z-Slice: {self.z_index}", fill="red")
-        self.zoom_text = self.canvas.create_text(10, 30, anchor=tk.NW, text=f"Zoom: {self.zoom_level:.2f}", fill="red")
-        self.cursor_pos_text = self.canvas.create_text(10, 50, anchor=tk.NW, text="Cursor Position: (0, 0)", fill="red")
+        self.z_slice_text = self.canvas.create_text(10, 10, anchor=tk.NW, text=f"Z-Slice: {self.z_index}", fill="red", font=('Helvetica', 12, 'bold'))
+        self.zoom_text = self.canvas.create_text(10, 30, anchor=tk.NW, text=f"Zoom: {self.zoom_level:.2f}", fill="red", font=('Helvetica', 12, 'bold'))
+        self.cursor_pos_text = self.canvas.create_text(10, 50, anchor=tk.NW, text="Cursor Position: (0, 0)", fill="red", font=('Helvetica', 12, 'bold'))
 
 
         # Bind event handlers
