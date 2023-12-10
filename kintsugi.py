@@ -7,6 +7,7 @@ import json
 import math
 import os
 import sys
+import struct
 import tempfile
 import threading
 import time
@@ -70,17 +71,18 @@ class Klepar:
         self._threaded_update_surface_adjuster_offsets_running = False
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
+        self.ppm = PPMParser('/src/kgl/dl.ash2txt.org/full-scrolls/Scroll1.volpkg/paths/20230702185753/20230702185753.ppm', skip=4).open()
         self.init_ui(arguments)
 
     @staticmethod
     def init_argparse():
         parser = argparse.ArgumentParser(usage="%(prog)s [OPTION] [FILE]...", description="Visualize and help annotate Vesuvius Challenge data.")
-        # parser.add_argument("--help", action="help")
         parser.add_argument("--h5fs-file", help="full path to H5FS (.h5) file; the first dataset there will be used")
         parser.add_argument("--axes", help="axes sequence in H5FS dataset", choices=['xyz', 'yxz', 'xzy', 'zxy', 'yzx', 'zyx'], default="xyz")
         parser.add_argument("--roi", help="region of interest (in dataset coords and axes!) to be loaded into memory and used, in x0-x1,y0-y1,z0-y1 notation (e.g. '0-1000,0-700,0-50')", default="0-1000,0-700,0-50")
         parser.add_argument("--surface-adjust-file", help="file from which to load surface adjustment nodes and save them on each change")
         parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
+        parser.add_argument("--h5fs-scroll", help="full path to scroll H5FS (.h5) file; the first dataset there will be used")
         return parser
 
     def parse_h5_roi_argument(self, roi, h5_axes_seq, stride):
@@ -127,7 +129,7 @@ class Klepar:
         self.slice_cache[z_index] = img
         return img
 
-    def load_data(self, h5_filename=None, h5_axes_seq=None, h5_roi=None):
+    def load_data(self, h5_filename=None, h5_axes_seq=None, h5_roi=None, h5_scroll_filename=None):
         if not h5_filename:
             selected_path = filedialog.askdirectory(title="Select Directory")
             if not selected_path:
@@ -162,6 +164,14 @@ class Klepar:
 
                 self.dimz, self.dimy, self.dimx = self.voxel_data.shape
                 self.file_name = os.path.basename(h5_filename)
+
+                self.h5_scroll_data_file = None
+                if h5_scroll_filename:
+                    self.h5_scroll_data_file = h5py.File(h5_scroll_filename, 'r')
+                    dataset_name, dataset_shape, dataset_type, dataset_chunks = self._h5_get_first_dataset_info(self.h5_scroll_data_file['/'])
+                    print("Opening scroll dataset:", dataset_name, dataset_shape, dataset_type, dataset_chunks)
+                    self.scroll_dataset = self.h5_scroll_data_file.require_dataset(dataset_name, shape=dataset_shape, dtype=dataset_type, chunks=dataset_chunks)
+
             else:
                 # Check if the directory contains Zarr or TIFF files
                 if os.path.exists(os.path.join(selected_path, '.zarray')):
@@ -551,6 +561,25 @@ class Klepar:
             self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
+    def update_nav3d_display(self, scroll_x, scroll_y, scroll_z):
+        # self.root.update()
+        pw, ph = self.canvas_z.winfo_width() // 2, self.canvas_z.winfo_height() // 2
+
+        self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
+        for i, c in enumerate([self.canvas_z, self. canvas_x, self.canvas_y]):
+            if i == 0:
+                img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x-pw:scroll_x+pw, scroll_z] // 256).astype(np.uint8)
+            elif i == 1:
+                img_data = (self.scroll_dataset[scroll_y, scroll_x-ph:scroll_x+ph, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
+            else:
+                img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
+            img = Image.fromarray(img_data).convert('RGBA')
+            self.canvas_3d_photoimgs.append(ImageTk.PhotoImage(image=img))  # must be on instance or it will be garbage collected before it is displayed
+            c.create_image(5, 5, anchor=tk.NW, image=self.canvas_3d_photoimgs[-1])
+
+            c.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
+            c.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
+
     def update_info_display(self):
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
         self.canvas.itemconfigure(self.zoom_text, text=f"Zoom: {self.zoom_level:.2f}")
@@ -562,10 +591,13 @@ class Klepar:
             offset = self.surface_adjuster_offsets[cursor_y, cursor_x]
             # self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Position: ({cursor_x}, {cursor_y}, offset {offset})")
 
-            scroll_x = cursor_x * self.stride + self.roi['x'][0]
-            scroll_y = cursor_y * self.stride + self.roi['y'][0]
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Scroll Position: ({scroll_x}, {scroll_y}, offset {offset})")
+            surface_x = cursor_x * self.stride + self.roi['x'][0]
+            surface_y = cursor_y * self.stride + self.roi['y'][0]
+            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y)
+            scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Scroll Position: ({surface_x}, {surface_y}, offset {offset}, 3D: {scroll_x} / {scroll_y} / {scroll_z})")
 
+            self.update_nav3d_display(scroll_x, scroll_y, scroll_z)
 
     def on_canvas_click(self, event):
         self.save_state()
@@ -927,6 +959,9 @@ Released under the MIT license.
         if self.format == 'h5fs':
             print("Closing H5 file.")
             self.h5_data_file.close()
+            if self.h5_scroll_data_file:
+                self.h5_scroll_data_file.close()
+        self.ppm.close()
 
     # butchered from: https://stackoverflow.com/a/53340677
     def _h5_get_first_dataset_info(self, obj):
@@ -1102,7 +1137,20 @@ Released under the MIT license.
         bucket_threshold_value_label.pack(side=tk.LEFT, padx=(0, 10))
         '''
         # The canvas itself remains in the center
-        self.canvas = tk.Canvas(self.root, width=400, height=400, bg='white')
+        self.center_frame = tk.Frame(self.root, bg="red")
+        self.center_frame.pack(side=tk.TOP, fill='both', expand=True)
+
+        self.nav3d_frame = tk.Frame(self.center_frame, width="201", bg="white")
+        self.nav3d_frame.pack(side=tk.LEFT, fill=tk.Y, expand=False)
+
+        self.canvas_z = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_z.pack(fill='both', expand=True)
+        self.canvas_x = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_x.pack(fill='both', expand=True)
+        self.canvas_y = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_y.pack(fill='both', expand=True)
+
+        self.canvas = tk.Canvas(self.center_frame, bg='white')
         self.canvas.pack(fill='both', expand=True)
 
         self.z_slice_text = self.canvas.create_text(10, 10, anchor=tk.NW, text=f"Z-Slice: {self.z_index}", fill="red")
@@ -1217,7 +1265,7 @@ Released under the MIT license.
         self.stride = max(1, int(arguments.stride)) if arguments.stride else 1
 
         if arguments.h5fs_file:
-            self.load_data(h5_filename=arguments.h5fs_file, h5_axes_seq=arguments.axes, h5_roi=arguments.roi)
+            self.load_data(h5_filename=arguments.h5fs_file, h5_axes_seq=arguments.axes, h5_roi=arguments.roi, h5_scroll_filename=arguments.h5fs_scroll)
 
         self.surface_adjust_filename = arguments.surface_adjust_file if arguments.surface_adjust_file else None
         self.load_surface_adjust_file()
@@ -1247,6 +1295,93 @@ class ProgressPrinter:
                 percent_done = 100. * ((n - self.min_n) / (self.max_n - self.min_n))
             self.print_(f'{self.label}: {n} ({self.min_n} -> {self.max_n}), progress: {percent_done:.2f}%, ETA: {eta:.2f}s')
             self.last_print_time = now
+
+
+class PPMParser(object):
+    def __init__(self, filename, skip=None):
+        self.filename = filename
+        self.skip = skip
+
+    def open(self):
+        print('Opening {}'.format(self.filename))
+        self.f = open(self.filename, 'rb')
+        self.info, self.header_size, self.header_content = PPMParser.vcps_parse_header(self.f)
+        return self
+
+    def close (self):
+        print('Closing file.')
+        self.f.close()
+
+    def __enter__ (self):
+        return self
+
+    def __exit__ (self, exc_type, exc_value, traceback):
+        self.close()
+
+    def im_zeros(self, dtype):
+        # allocates exactly the size that is needed for resulting image, taking skip into account:
+        if self.skip is None:
+            a = np.zeros((self.info['width'], self.info['height']), dtype=dtype)
+        else:
+            a = np.zeros((self.info['width'] // self.skip + 1, self.info['height'] // self.skip + 1), dtype=dtype)
+        return a
+
+    @staticmethod
+    def vcps_parse_header(f):
+        info = {}
+        header_size = 0
+        header_content = b''
+        while True:
+            l_bytes = f.readline()
+            header_size += len(l_bytes)
+            header_content += l_bytes
+            l = l_bytes.decode('utf-8').rstrip("\n")
+            if l == '<>':
+                break
+            k, v = l.split(': ', 1)
+            if v.isnumeric():
+                v = int(v)
+            info[k] = v
+        return info, header_size, header_content
+
+    def read_next_coords(self, skip_empty=True):
+        f = self.f
+        im_width = self.info['width']
+        skip = self.skip
+        n = -1
+        while True:
+            n += 1
+
+            buf = f.read(6*8)
+            if not buf:
+                break
+            x, y, z, nx, ny, nz = struct.unpack('<dddddd', buf)
+
+            if skip_empty and int(x) == 0:
+                continue
+
+            imx, imy = n % im_width, n // im_width
+
+            if skip is not None:
+                # skip most of the data and adjust image coordinates if we are using skip:
+                if imx % skip or imy % skip:
+                    continue
+
+                yield imx // skip, imy // skip, x, y, z, nx, ny, nz
+            else:
+                yield imx, imy, x, y, z, nx, ny, nz
+
+    def get_3d_coords(self, imx, imy):
+        f = self.f
+        im_width = self.info['width']
+        pos = self.header_size + (imy * im_width + imx) * 6 * 8
+        f.seek(pos, os.SEEK_SET)
+
+        buf = f.read(6*8)
+        if not buf:
+            return None, None, None, None, None, None
+        x, y, z, nx, ny, nz = struct.unpack('<dddddd', buf)
+        return x, y, z, nx, ny, nz
 
 
 if __name__ == "__main__":
