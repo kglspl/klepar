@@ -14,6 +14,7 @@ h5py = "*"
 scipy = "*"
 scikit-image = "*"
 geometer = "*"
+pyperclip = "*"
 
 [dev-packages]
 

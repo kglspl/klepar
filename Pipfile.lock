@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "629ccd567bdcc5f25844a2983be19045e1f6434cf82db5df7ae9d28bce769a93"
+            "sha256": "9df23bbe3c0e8965bc12e511ee3a5c89d172aa54986326299b2f706ba2053a27"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -71,11 +71,11 @@
         },
         "imageio": {
             "hashes": [
-                "sha256:39999d05eb500089e60be467dd7d618f56e142229b44c3961c2b420eeb538d7e",
-                "sha256:d580d6576d0ae39c459a444a23f6f61fe72123a3df2264f5fce8c87784a4be2e"
+                "sha256:78722d40b137bd98f5ec7312119f8aea9ad2049f76f434748eb306b6937cc1ce",
+                "sha256:c5094c48ccf6b2e6da8b4061cd95e1209380afafcbeae4a4e280938cce227e1d"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==2.33.0"
+            "version": "==2.33.1"
         },
         "lazy-loader": {
             "hashes": [
@@ -221,6 +221,13 @@
             ],
             "index": "pypi",
             "version": "==10.1.0"
+        },
+        "pyperclip": {
+            "hashes": [
+                "sha256:105254a8b04934f0bc84e9c24eb360a591aaf6535c9def5f29d92af107a9bf57"
+            ],
+            "index": "pypi",
+            "version": "==1.8.2"
         },
         "pywavelets": {
             "hashes": [

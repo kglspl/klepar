@@ -16,6 +16,7 @@ from geometer import Plane, Point, Line
 import h5py
 import numpy as np
 from PIL import Image, ImageTk
+import pyperclip
 from scipy.spatial import Delaunay
 from skimage.draw import line_aa
 import tifffile
@@ -659,8 +660,7 @@ class Klepar:
 
     def remove_surface_adjuster_node(self, existing_index):
         # before deleting node, find its past neighbors, then extract affected bounds so that we can refresh just that part of offsets array:
-        if self.surface_adjuster_tri:
-            bounds_affected = self.get_surface_adjuster_bounds_affected_on_toggle(existing_index)
+        bounds_affected = self.get_surface_adjuster_bounds_affected_on_toggle(existing_index) if self.surface_adjuster_tri else None
 
         del self.surface_adjuster_nodes[existing_index]
         return bounds_affected
@@ -846,6 +846,22 @@ class Klepar:
         canvas_center_y = self.canvas.winfo_height() / 2
         self.scale(zoom_amount, canvas_center_x, canvas_center_y)
         self.update_display_slice()
+
+    def key_handler(self, ev):
+        print(ev.keysym)
+        if ev.state == 20 and ev.keysym == 'c':
+            if not self.click_coordinates:
+                return
+            try:
+                _, cursor_y, cursor_x = self.calculate_image_coordinates(self.click_coordinates)
+            except:
+                cursor_x, cursor_y = 0, 0
+            surface_x = cursor_x * self.stride + self.roi['x'][0]
+            surface_y = cursor_y * self.stride + self.roi['y'][0]
+            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y)
+            scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
+            print(f'Copying 3D x/y/z coordinates to clipboard: {scroll_x}, {scroll_y}, {scroll_z}')
+            pyperclip.copy(f'{scroll_x}, {scroll_y}, {scroll_z}')
 
     def toggle_mask(self):
         # Toggle the state
@@ -1181,6 +1197,7 @@ Released under the MIT license.
         # On Linux, Button-4 is scroll up and Button-5 is scroll down
         self.canvas.bind("<Button-4>", self.scroll_or_zoom)
         self.canvas.bind("<Button-5>", self.scroll_or_zoom)
+        self.root.bind("<Key>", self.key_handler)
 
         # Variables for toggling states
         self.show_mask_var = tk.BooleanVar(value=self.show_mask)
