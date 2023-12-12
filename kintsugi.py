@@ -408,12 +408,14 @@ class Klepar:
     '''
 
     def on_canvas_drag(self, event):
-        if self.drag_start_x is not None and self.drag_start_y is not None:
-            dx = event.x - self.drag_start_x
-            dy = event.y - self.drag_start_y
-            self.translate(dx, dy)
-            self.update_display_slice()
-            self.drag_start_x, self.drag_start_y = event.x, event.y
+        if self.drag_start_x is None or self.drag_start_y is None:
+            return
+
+        dx = event.x - self.drag_start_x
+        dy = event.y - self.drag_start_y
+        self.translate(dx, dy)
+        self.update_display_slice()
+        self.drag_start_x, self.drag_start_y = event.x, event.y
 
     def on_canvas_pencil_drag(self, event):
         if self.mode.get() == "pencil" or self.mode.get() == "eraser":
