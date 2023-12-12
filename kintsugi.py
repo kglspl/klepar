@@ -416,6 +416,7 @@ class Klepar:
         self.translate(dx, dy)
         self.update_display_slice()
         self.drag_start_x, self.drag_start_y = event.x, event.y
+        self.update_nav3d_display()
 
     def on_canvas_pencil_drag(self, event):
         if self.mode.get() == "pencil" or self.mode.get() == "eraser":
@@ -426,6 +427,7 @@ class Klepar:
         self.drag_start_x = None
         self.drag_start_y = None
         self.update_display_slice()
+        self.update_nav3d_display()
 
     def resize_with_aspect(self, image, target_width, target_height, zoom=1):
         original_width, original_height = image.size
@@ -561,16 +563,21 @@ class Klepar:
             self.photo_img = ImageTk.PhotoImage(image=self.resized_img)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_img)
 
-            pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
-            self.canvas.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
-            self.canvas.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
-
             self.canvas.tag_raise(self.z_slice_text)
             self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
-    def update_nav3d_display(self, scroll_x, scroll_y, scroll_z):
+    def update_nav3d_display(self):
         # self.root.update()
+        pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
+        self.canvas.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
+        self.canvas.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
+        _, surface_y_px, surface_x_px = self.calculate_image_coordinates((None, ph, pw))
+        surface_x, surface_y = surface_x_px * self.stride + self.roi['x'][0], surface_y_px * self.stride + self.roi['y'][0]
+
+        # print('surface_y, surface_x', surface_y, surface_x)
+        scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y)
+        scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
 
         self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
         for i, c in enumerate([self.canvas_z, self. canvas_x, self.canvas_y]):
@@ -609,9 +616,7 @@ class Klepar:
             surface_y = cursor_y * self.stride + self.roi['y'][0]
             self.canvas.itemconfigure(self.cursor_pos_text, text=f"Surface Position: ({surface_x}, {surface_y}, offset {offset})")
 
-            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y)
-            scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
-            self.update_nav3d_display(scroll_x, scroll_y, scroll_z)
+        self.update_nav3d_display()
 
     def on_canvas_click(self, event):
         self.save_state()
