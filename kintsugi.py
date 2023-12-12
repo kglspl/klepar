@@ -592,8 +592,15 @@ class Klepar:
             self.canvas_3d_photoimgs.append(ImageTk.PhotoImage(image=img))  # must be on instance or it will be garbage collected before it is displayed
             c.create_image(5, 5, anchor=tk.NW, image=self.canvas_3d_photoimgs[-1])
 
-            c.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
-            c.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
+            if i == 0:
+                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='blue')
+                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='red')
+            elif i == 1:
+                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
+                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='blue')
+            else:
+                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
+                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='red')
 
         self.canvas_z.itemconfigure(self.canvas_z_text, text=f"Z: {scroll_z}")
         self.canvas_x.itemconfigure(self.canvas_x_text, text=f"X: {scroll_x}")
@@ -1177,11 +1184,11 @@ Released under the MIT license.
         self.nav3d_frame = tk.Frame(self.center_frame, width="201", bg="white")
         self.nav3d_frame.pack(side=tk.LEFT, fill=tk.Y, expand=False)
 
-        self.canvas_z = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_z = tk.Canvas(self.nav3d_frame, bg='white', highlightthickness=5, highlightbackground="green")
         self.canvas_z.pack(fill='both', expand=True)
-        self.canvas_x = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_x = tk.Canvas(self.nav3d_frame, bg='white', highlightthickness=5, highlightbackground="red")
         self.canvas_x.pack(fill='both', expand=True)
-        self.canvas_y = tk.Canvas(self.nav3d_frame, bg='white')
+        self.canvas_y = tk.Canvas(self.nav3d_frame, bg='white', highlightthickness=5, highlightbackground="blue")
         self.canvas_y.pack(fill='both', expand=True)
         self.canvas_z_text = self.canvas_z.create_text(10, 10, anchor=tk.NW, text="Z: /", fill="red", font=('Helvetica', 15, 'bold'))
         self.canvas_x_text = self.canvas_x.create_text(10, 10, anchor=tk.NW, text="X: /", fill="red", font=('Helvetica', 15, 'bold'))
