@@ -560,16 +560,21 @@ class Klepar:
             # Convert back to a format that can be displayed in Tkinter
             self.photo_img = ImageTk.PhotoImage(image=self.resized_img)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_img)
+
+            pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
+            self.canvas.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
+            self.canvas.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
+
             self.canvas.tag_raise(self.z_slice_text)
             self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
     def update_nav3d_display(self, scroll_x, scroll_y, scroll_z):
         # self.root.update()
-        pw, ph = self.canvas_z.winfo_width() // 2, self.canvas_z.winfo_height() // 2
 
         self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
         for i, c in enumerate([self.canvas_z, self. canvas_x, self.canvas_y]):
+            pw, ph = c.winfo_width() // 2, c.winfo_height() // 2
             if i == 0:
                 img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x-pw:scroll_x+pw, scroll_z] // 256).astype(np.uint8)
             elif i == 1:
@@ -850,7 +855,7 @@ class Klepar:
         self.update_display_slice()
 
     def key_handler(self, ev):
-        print(ev.keysym)
+        # print(ev.keysym)
         if ev.state == 20 and ev.keysym == 'c':
             if not self.click_coordinates:
                 return
