@@ -56,6 +56,7 @@ class Klepar:
         self.max_history_size = 3  # Maximum number of states to store
         self.mask_data = None
         self.show_mask = True  # Default to showing the mask
+        self.flatten_mask = True  # Display mask flattened (but still remember 3D)
         self.show_image = True
         self.show_prediction = True
         self.show_surface_offsets = True
@@ -489,7 +490,10 @@ class Klepar:
 
             # Only overlay the mask if show_mask is True
             if self.mask_data is not None and self.show_mask:
-                mask = np.uint8(self.mask_data[self.z_index, :, :] * self.overlay_alpha)
+                if self.flatten_mask:
+                    mask = np.uint8(np.amax(self.mask_data, axis=0) * self.overlay_alpha)
+                else:
+                    mask = np.uint8(self.mask_data[self.z_index, :, :] * self.overlay_alpha)
                 yellow = np.zeros_like(mask, dtype=np.uint8)
                 yellow[:, :] = 255  # Yellow color
                 mask_img = Image.fromarray(np.stack([yellow, yellow, np.zeros_like(mask), mask], axis=-1), 'RGBA')
@@ -911,6 +915,11 @@ class Klepar:
         self.update_display_slice()
         self.update_log(f"Mask {'shown' if self.show_mask else 'hidden'}.\n")
 
+    def toggle_flatten_mask(self):
+        self.flatten_mask = not self.flatten_mask
+        self.flatten_mask_var.set(self.flatten_mask)
+        self.update_display_slice()
+
     def toggle_barrier(self):
         # Toggle the state
         self.show_barrier = not self.show_barrier
@@ -1240,6 +1249,7 @@ Released under the MIT license.
 
         # Variables for toggling states
         self.show_mask_var = tk.BooleanVar(value=self.show_mask)
+        self.flatten_mask_var = tk.BooleanVar(value=self.flatten_mask)
         self.show_barrier_var = tk.BooleanVar(value=self.show_barrier)
         self.show_image_var = tk.BooleanVar(value=self.show_image)
         self.show_prediction_var = tk.BooleanVar(value=self.show_prediction)
@@ -1251,6 +1261,9 @@ Released under the MIT license.
 
         # Create toggle buttons for mask and image visibility
         toggle_mask_button = ttk.Checkbutton(toggle_frame, text="Mask", command=self.toggle_mask, variable=self.show_mask_var)
+        toggle_mask_button.pack(side=tk.LEFT, padx=5, anchor='s')
+
+        toggle_mask_button = ttk.Checkbutton(toggle_frame, text="Flatten mask", command=self.toggle_flatten_mask, variable=self.flatten_mask_var)
         toggle_mask_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
         toggle_barrier_button = ttk.Checkbutton(toggle_frame, text="Barrier", command=self.toggle_barrier, variable=self.show_barrier_var)
