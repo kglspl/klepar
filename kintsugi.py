@@ -256,9 +256,9 @@ class Klepar:
             return
 
         # Prompt to save changes if there are any unsaved changes
-        if self.history:
-            if not tk.messagebox.askyesno("Unsaved Changes", "You have unsaved changes. Do you want to continue without saving?"):
-                return
+        # if self.history:
+        #     if not tk.messagebox.askyesno("Unsaved Changes", "You have unsaved changes. Do you want to continue without saving?"):
+        #         return
 
         # kglspl: specific changes - masks are named mask_*.tif, they are made with stride=8
 
