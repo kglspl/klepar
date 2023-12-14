@@ -320,6 +320,57 @@ class Klepar:
         else:
             self.update_log("No mask data to save.")
 
+    def save_flattened_mask(self):
+        if self.mask_data is None:
+            print("LOG: No mask data to save.")
+            return
+
+        # Construct the default file name for saving
+        # base_name = os.path.splitext(os.path.basename(self.file_name))[0]
+        # default_save_file_name = f"mask_{base_name}.tif"
+        # Open the file dialog with the proposed file name
+        save_file_path = filedialog.asksaveasfilename(
+            initialdir=self.default_masks_directory,
+            title="Select File to Save Mask to",
+            initialfile='mask_xxx.tif',
+            filetypes=[("Mask TIFF files", "mask_*.tif")]
+        )
+
+        if not save_file_path:
+            print("LOG: Not saving mask data, cancelled.")
+            return
+
+        full_data = None
+        expected_shape = ((self.dataset_shape_xyz[1] * self.stride) // 4, (self.dataset_shape_xyz[0] * self.stride) // 4)
+        if os.path.exists(save_file_path):
+            full_im = Image.open(save_file_path)
+            full_data = np.array(full_im, dtype=np.uint8)
+            if full_data.shape != expected_shape:
+                raise Exception(f"Sorry, looks like this mask is a wrong shape for this dataset with this stride ({self.stride})")
+        else:
+            full_data = np.zeros(expected_shape, dtype=np.uint8)
+
+        try:
+            # Save the flattened mask as TIFF to the chosen file path
+            data = np.max(self.mask_data, axis=0).astype(bool).astype(np.uint8).T * 255
+
+            # Resize data:
+            im = Image.fromarray(data, 'L')
+            im = im.resize(((im.size[0] * self.stride) // 4, (im.size[1] * self.stride) // 4), Image.NEAREST)
+            data = np.array(im, dtype=np.uint8)
+
+            # Apply it to full_data (from the mask file)
+            full_data[self.roi['y'][0] // 4:self.roi['y'][1] // 4, self.roi['x'][0] // 4:self.roi['x'][1] // 4] = data.T
+
+            # Depending on the file we used, stride could be 1, 2, 4,... However our masks are saved always with stride 4, so let's resize as needed:
+            im = Image.fromarray(full_data, 'L')
+            # im.thumbnail((data.shape[1] // shrink_factor, data.shape[0] // shrink_factor), Image.Resampling.LANCZOS)
+            im.save(save_file_path, 'TIFF')
+            print(f"LOG: Mask saved as TIFF in {save_file_path}, size {im.size}")
+        except Exception as e:
+            print(f"LOG: Error saving mask: {e}")
+            raise
+
     def update_threshold_layer(self, layer):
         try:
             self.th_layer = int(float(layer))
@@ -1121,12 +1172,17 @@ Released under the MIT license.
         load_mask_button = ttk.Button(self.toolbar_frame, image=load_mask_icon, command=self.load_mask)
         load_mask_button.image = load_mask_icon
         load_mask_button.pack(side=tk.LEFT, padx=2)
-        self.create_tooltip(load_mask_button, "Load Ink Label")
+        self.create_tooltip(load_mask_button, "Load Ink Mask")
 
         save_button = ttk.Button(self.toolbar_frame, image=save_icon, command=self.save_image)
         save_button.image = save_icon
         save_button.pack(side=tk.LEFT, padx=2)
-        self.create_tooltip(save_button, "Save Zarr 3D Label")
+        self.create_tooltip(save_button, "Save Zarr 3D Mask")
+
+        save_button = ttk.Button(self.toolbar_frame, image=save_icon, command=self.save_flattened_mask)
+        save_button.image = save_icon
+        save_button.pack(side=tk.LEFT, padx=2)
+        self.create_tooltip(save_button, "Save Flattened 2D Mask as TIFF")
 
         load_prediction = ttk.Button(self.toolbar_frame, image=prediction_icon, command=self.load_prediction)
         load_prediction.image = load_icon
