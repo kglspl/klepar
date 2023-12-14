@@ -73,6 +73,7 @@ class Klepar:
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
         self.ppm = PPMParser('/src/kgl/dl.ash2txt.org/full-scrolls/Scroll1.volpkg/paths/20230702185753/20230702185753.ppm', skip=4).open()
+        self.default_masks_directory = '/src/kgl/assets/'
         self.init_ui(arguments)
 
     @staticmethod
@@ -250,30 +251,49 @@ class Klepar:
 
     def load_mask(self):
         if self.voxel_data is None:
-            self.update_log("No voxel data loaded. Load voxel data first.")
+            print("LOG: No voxel data loaded. Load voxel data first.")
             return
 
-            # Prompt to save changes if there are any unsaved changes
+        # Prompt to save changes if there are any unsaved changes
         if self.history:
             if not tk.messagebox.askyesno("Unsaved Changes", "You have unsaved changes. Do you want to continue without saving?"):
                 return
 
+        # kglspl: specific changes - masks are named mask_*.tif, they are made with stride=8
+
         # File dialog to select mask file
-        mask_file_path = filedialog.askdirectory(
-            title="Select Label Zarr File")
+        mask_filename = filedialog.askopenfilename(
+            initialdir=self.default_masks_directory,
+            title="Select Masks TIFF File",
+            filetypes=[("Mask TIFF files", "mask_*.tif")]
+        )
 
+        if not mask_filename:
+            print("LOG: Not loading mask data, cancelled.")
+            return
 
-        if mask_file_path:
-            try:
-                loaded_mask = zarr.open(mask_file_path, mode='r')
-                if loaded_mask.shape == (self.dimz, self.dimy, self.dimx):
-                    self.mask_data = loaded_mask
-                    self.update_display_slice()
-                    self.update_log("Label loaded successfully.")
-                else:
-                    self.update_log("Error: Label dimensions do not match the voxel data dimensions.")
-            except Exception as e:
-                    self.update_log(f"Error loading mask: {e}")
+        try:
+            im = Image.open(mask_filename)
+            # self.mask_data = np.zeros(shape=(self.dataset.shape[0], self.dataset.shape[1]))  # axes: x, y
+            d = 4 // self.stride
+            if d != 1:
+                im = im.resize((im.size[0] * d, im.size[1] * d), Image.NEAREST)
+            mask = np.array(im, dtype=np.uint8).T / 255
+            print('mask', mask.shape, mask.dtype, mask.min(), mask.max())
+            assert len(mask.shape) == 2
+            print('roi', self.roi)
+            x0 = self.roi['x'][0] // self.stride
+            y0 = self.roi['y'][0] // self.stride
+            part = mask[x0:x0 + self.mask_data.shape[2], y0:y0 + self.mask_data.shape[1]].T
+            print('part', part.shape, part.dtype, part.min(), part.max())
+
+            mask_data = np.stack([part for _ in range(self.mask_data.shape[0])], axis=0)
+            self.mask_data = mask_data
+
+        except Exception as e:
+            # print(f"LOG: Error loading mask: {e}")
+            raise
+
 
     def save_image(self):
         if self.mask_data is not None:
@@ -889,7 +909,7 @@ class Klepar:
         self.show_mask_var.set(self.show_mask)
         # Update the display to reflect the new state
         self.update_display_slice()
-        self.update_log(f"Label {'shown' if self.show_mask else 'hidden'}.\n")
+        self.update_log(f"Mask {'shown' if self.show_mask else 'hidden'}.\n")
 
     def toggle_barrier(self):
         # Toggle the state
@@ -1230,7 +1250,7 @@ Released under the MIT license.
         toggle_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=2)
 
         # Create toggle buttons for mask and image visibility
-        toggle_mask_button = ttk.Checkbutton(toggle_frame, text="Label", command=self.toggle_mask, variable=self.show_mask_var)
+        toggle_mask_button = ttk.Checkbutton(toggle_frame, text="Mask", command=self.toggle_mask, variable=self.show_mask_var)
         toggle_mask_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
         toggle_barrier_button = ttk.Checkbutton(toggle_frame, text="Barrier", command=self.toggle_barrier, variable=self.show_barrier_var)
