@@ -712,7 +712,7 @@ class Klepar:
                 self.click_coordinates = img_coords
                 self.update_log("Starting flood fill...")
                 self.threaded_flood_fill()  # Assuming threaded_flood_fill is implemented for non-blocking UI
-        elif mode == "pencil":
+        elif mode in ["pencil", "eraser"]:
             # Assuming the pencil (pixel editing) functionality
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
         elif mode == "surface-adjuster":
