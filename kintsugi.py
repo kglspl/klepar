@@ -643,46 +643,85 @@ class Klepar:
             self.canvas.tag_raise(self.cursor_pos_text)
 
     def update_nav3d_display(self):
-        # self.root.update()
+        # Get canvas coordinates and create crosshair on the right (surface) canvas:
         pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
         self.canvas.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
         self.canvas.create_line((pw, ph-10), (pw, ph+10), width=1, fill='red')
+
+        # Get surface coordinates:
         _, surface_y_px, surface_x_px = self.calculate_image_coordinates((None, ph, pw))
         surface_x, surface_y = surface_x_px * self.stride + self.roi['x'][0], surface_y_px * self.stride + self.roi['y'][0]
 
-        # print('surface_y, surface_x', surface_y, surface_x)
-        scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y)
-        scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
+        # Get corresponding 3D coordinates:
+        scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y, rounded=True)
 
-        self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
-        for i, c in enumerate([self.canvas_z, self. canvas_x, self.canvas_y]):
+        # Load images from scroll 3D data and show it on nav3d canvases:
+        imgs = []
+        for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
             pw, ph = c.winfo_width() // 2, c.winfo_height() // 2
             if i == 0:
                 img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x-pw:scroll_x+pw, scroll_z] // 256).astype(np.uint8)
             elif i == 1:
-                img_data = (self.scroll_dataset[scroll_y, scroll_x-ph:scroll_x+ph, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
-            else:
                 img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
+            else:
+                img_data = (self.scroll_dataset[scroll_y, scroll_x-ph:scroll_x+ph, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
             img = Image.fromarray(img_data).convert('RGBA')
-            self.canvas_3d_photoimgs.append(ImageTk.PhotoImage(image=img))  # must be on instance or it will be garbage collected before it is displayed
-            c.create_image(5, 5, anchor=tk.NW, image=self.canvas_3d_photoimgs[-1])
+            imgs.append(img)
 
-            if i == 0:
-                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='blue')
-                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='red')
-            elif i == 1:
+        # Draw vicinity points on images while still in Image format:
+        imgs = self.update_vicinity_points_on_nav3d(imgs, pw, ph, surface_x, surface_y, scroll_x, scroll_y, scroll_z)
+
+        # Render photoimages on nav3d canvases:
+        self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
+        for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
+            self.canvas_3d_photoimgs.append(ImageTk.PhotoImage(image=imgs[i]))  # must be on instance or it will be garbage collected before it is displayed
+            c.create_image(5, 5, anchor=tk.NW, image=self.canvas_3d_photoimgs[i])
+
+        # Draw center navigation lines on canvases:
+        for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
+            if i == 0:  # 0 == z
+                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='red')
+                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='blue')
+            elif i == 1:  # 1 == x
                 c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
                 c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='blue')
-            else:
+            else:  # 2 == y
                 c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
                 c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='red')
 
+        # Update labels with 3D coordinates:
         self.canvas_z.itemconfigure(self.canvas_z_text, text=f"Z: {scroll_z}")
         self.canvas_x.itemconfigure(self.canvas_x_text, text=f"X: {scroll_x}")
         self.canvas_y.itemconfigure(self.canvas_y_text, text=f"Y: {scroll_y}")
         self.canvas_z.tag_raise(self.canvas_z_text)
         self.canvas_x.tag_raise(self.canvas_x_text)
         self.canvas_y.tag_raise(self.canvas_y_text)
+
+
+
+    def update_vicinity_points_on_nav3d(self,
+                                        imgs, pw, ph,
+                                        center_surface_x, center_surface_y,
+                                        center_scroll_x, center_scroll_y, center_scroll_z,
+                                        padding=50, stride=1):
+        # get 3D points for the vicinity of surface x/y, if they match 3D x/y/z slice that we are showing, draw a marker there
+        for sx in range(center_surface_x - padding, center_surface_x + padding + 1, stride):
+            for sy in range(center_surface_y - padding, center_surface_y + padding + 1, stride):
+                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(sx, sy, rounded=True)
+
+                if sx == center_surface_x and sy == center_surface_y:
+                    color = (0xff, 0xff, 0x00)
+                else:
+                    color = (0xff, 0x66, 0x00)
+                if scroll_z == center_scroll_z:
+                    imgs[0].putpixel((pw + scroll_x - center_scroll_x, ph + scroll_y - center_scroll_y), color)
+                if scroll_x == center_scroll_x:
+                    imgs[1].putpixel((pw + scroll_z - center_scroll_z, ph + scroll_y - center_scroll_y), color)
+                if scroll_y == center_scroll_y:
+                    imgs[2].putpixel((pw + scroll_z - center_scroll_z, ph + scroll_x - center_scroll_x), color)
+
+        return imgs
+
 
     def update_info_display(self):
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
@@ -952,8 +991,7 @@ class Klepar:
                 cursor_x, cursor_y = 0, 0
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
-            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y)
-            scroll_x, scroll_y, scroll_z = round(scroll_x), round(scroll_y), round(scroll_z)
+            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded=True)
             print(f'Copying 3D x/y/z coordinates to clipboard: {scroll_x}, {scroll_y}, {scroll_z}')
             pyperclip.copy(f'{scroll_x}, {scroll_y}, {scroll_z}')
 
@@ -1506,7 +1544,7 @@ class PPMParser(object):
             else:
                 yield imx, imy, x, y, z, nx, ny, nz
 
-    def get_3d_coords(self, imx, imy):
+    def get_3d_coords(self, imx, imy, rounded=False):
         f = self.f
         im_width = self.info['width']
         pos = self.header_size + (imy * im_width + imx) * 6 * 8
@@ -1516,7 +1554,10 @@ class PPMParser(object):
         if not buf:
             return None, None, None, None, None, None
         x, y, z, nx, ny, nz = struct.unpack('<dddddd', buf)
-        return x, y, z, nx, ny, nz
+        if rounded:
+            return round(x), round(y), round(z), round(nx), round(ny), round(nz)
+        else:
+            return x, y, z, nx, ny, nz
 
 
 if __name__ == "__main__":
