@@ -680,14 +680,20 @@ class Klepar:
         # Draw center navigation lines on canvases:
         for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
             if i == 0:  # 0 == z
-                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='red')
-                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='blue')
+                c.create_line((pw, 0), (pw, ph//2), width=2, fill='red')
+                c.create_line((pw, round(1.5*ph)), (pw, 2 * ph + 1), width=2, fill='red')
+                c.create_line((0, ph), (pw//2, ph), width=2, fill='blue')
+                c.create_line((round(1.5*pw), ph), (2*pw + 1, ph), width=2, fill='blue')
             elif i == 1:  # 1 == x
-                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
-                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='blue')
+                c.create_line((pw, 0), (pw, ph//2), width=2, fill='green')
+                c.create_line((pw, round(1.5*ph)), (pw, 2 * ph + 1), width=2, fill='green')
+                c.create_line((0, ph), (pw//2, ph), width=2, fill='blue')
+                c.create_line((round(1.5*pw), ph), (2*pw + 1, ph), width=2, fill='blue')
             else:  # 2 == y
-                c.create_line((pw, 0), (pw, 2 * ph + 1), width=2, fill='green')
-                c.create_line((0, ph), (2*pw + 1, ph), width=2, fill='red')
+                c.create_line((pw, 0), (pw, ph//2), width=2, fill='green')
+                c.create_line((pw, round(1.5*ph)), (pw, 2 * ph + 1), width=2, fill='green')
+                c.create_line((0, ph), (pw//2, ph), width=2, fill='red')
+                c.create_line((round(1.5*pw), ph), (2*pw + 1, ph), width=2, fill='red')
 
         # Update labels with 3D coordinates:
         self.canvas_z.itemconfigure(self.canvas_z_text, text=f"Z: {scroll_z}")
