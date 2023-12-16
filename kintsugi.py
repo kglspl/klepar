@@ -15,7 +15,7 @@ import time
 from geometer import Plane, Point, Line
 import h5py
 import numpy as np
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import pyperclip
 from scipy.spatial import Delaunay
 from skimage.draw import line_aa
@@ -653,7 +653,7 @@ class Klepar:
         surface_x, surface_y = surface_x_px * self.stride + self.roi['x'][0], surface_y_px * self.stride + self.roi['y'][0]
 
         # Get corresponding 3D coordinates:
-        scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y, rounded=True)
+        scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
 
         # Load images from scroll 3D data and show it on nav3d canvases:
         imgs = []
@@ -669,7 +669,8 @@ class Klepar:
             imgs.append(img)
 
         # Draw vicinity points on images while still in Image format:
-        imgs = self.update_vicinity_points_on_nav3d(imgs, pw, ph, surface_x, surface_y, scroll_x, scroll_y, scroll_z)
+        imgs = self.draw_vicinity_points_on_nav3d(imgs, pw, ph, surface_x, surface_y, scroll_x, scroll_y, scroll_z)
+        imgs = self.draw_normals_on_nav3d(imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz)
 
         # Render photoimages on nav3d canvases:
         self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
@@ -705,7 +706,7 @@ class Klepar:
 
 
 
-    def update_vicinity_points_on_nav3d(self,
+    def draw_vicinity_points_on_nav3d(self,
                                         imgs, pw, ph,
                                         center_surface_x, center_surface_y,
                                         center_scroll_x, center_scroll_y, center_scroll_z,
@@ -713,7 +714,7 @@ class Klepar:
         # get 3D points for the vicinity of surface x/y, if they match 3D x/y/z slice that we are showing, draw a marker there
         for sx in range(center_surface_x - padding, center_surface_x + padding + 1, stride):
             for sy in range(center_surface_y - padding, center_surface_y + padding + 1, stride):
-                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(sx, sy, rounded=True)
+                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(sx, sy, rounded_xyz=True)
 
                 if sx == center_surface_x and sy == center_surface_y:
                     color = (0xff, 0xff, 0x00)
@@ -728,6 +729,14 @@ class Klepar:
 
         return imgs
 
+    def draw_normals_on_nav3d(self, imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz, color=(0xff, 0xff, 0x00), length=20):
+        draw = ImageDraw.Draw(imgs[0])
+        draw.line((pw, ph, pw+round(scroll_nx * length), ph+round(scroll_ny * length)), fill=color)
+        draw = ImageDraw.Draw(imgs[1])
+        draw.line((pw, ph, pw+round(scroll_nz * length), ph+round(scroll_ny * length)), fill=color)
+        draw = ImageDraw.Draw(imgs[2])
+        draw.line((pw, ph, pw+round(scroll_nz * length), ph+round(scroll_nx * length)), fill=color)
+        return imgs
 
     def update_info_display(self):
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
@@ -997,7 +1006,7 @@ class Klepar:
                 cursor_x, cursor_y = 0, 0
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
-            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded=True)
+            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
             print(f'Copying 3D x/y/z coordinates to clipboard: {scroll_x}, {scroll_y}, {scroll_z}')
             pyperclip.copy(f'{scroll_x}, {scroll_y}, {scroll_z}')
 
@@ -1550,7 +1559,7 @@ class PPMParser(object):
             else:
                 yield imx, imy, x, y, z, nx, ny, nz
 
-    def get_3d_coords(self, imx, imy, rounded=False):
+    def get_3d_coords(self, imx, imy, rounded_xyz=False):
         f = self.f
         im_width = self.info['width']
         pos = self.header_size + (imy * im_width + imx) * 6 * 8
@@ -1560,8 +1569,8 @@ class PPMParser(object):
         if not buf:
             return None, None, None, None, None, None
         x, y, z, nx, ny, nz = struct.unpack('<dddddd', buf)
-        if rounded:
-            return round(x), round(y), round(z), round(nx), round(ny), round(nz)
+        if rounded_xyz:
+            return round(x), round(y), round(z), nx, ny, nz
         else:
             return x, y, z, nx, ny, nz
 
