@@ -754,7 +754,7 @@ class Klepar:
 
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset})")
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset:.2f})")
 
         self.update_nav3d_display()
 
@@ -994,7 +994,7 @@ class Klepar:
         mat = np.eye(3)
         mat[0, 0] = mat[1, 1] = scale_factor
         self.mat_affine = np.dot(mat, self.mat_affine)
-        self.zoom_level *= scale_factor
+        self.zoom_level = self.mat_affine[0, 0]
         self.translate(cx, cy)
 
     def zoom(self, delta):
@@ -1007,7 +1007,7 @@ class Klepar:
     def key_handler(self, ev):
         # print(repr(ev.keysym), ev.state)
 
-        # Ctrl+C or Ctrl+Insert (Copy)
+        # Ctrl+C or Ctrl+Insert (copy to clipboard)
         if ev.state == 20 and ev.keysym in ['c', 'Insert']:
             try:
                 _, _, scroll_x, scroll_y, scroll_z, _, _, _ = self.center_coordinates
@@ -1016,6 +1016,23 @@ class Klepar:
                 return
             print(f'Copying 3D x/y/z coordinates to clipboard: {scroll_x}, {scroll_y}, {scroll_z}')
             pyperclip.copy(f'{scroll_x}, {scroll_y}, {scroll_z}')
+            return
+
+        # Ctrl+. (reset z-index)
+        if ev.state == 20 and ev.keysym == 'period':
+            print(f'Resetting z-index')
+            self.z_index = self.dimz // 2
+            self.update_display_slice()
+            self.update_info_display()
+            return
+
+        # Ctrl+0 (reset zoom)
+        if ev.state == 20 and ev.keysym == '0':
+            print(f'Resetting zoom')
+            self.zoom_level = self.mat_affine[0, 0] = self.mat_affine[1, 1] = 1.
+            self.update_display_slice()
+            self.update_info_display()
+            return
 
     def toggle_mask(self):
         # Toggle the state
