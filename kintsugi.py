@@ -772,8 +772,10 @@ class Klepar:
             self.color_pixel(img_coords)  # Assuming color_pixel is implemented
         elif mode == "surface-adjuster":
             if self.show_surface_offsets:
-                self.update_log("Careful, you are seeing offsets, ignoring click.")
-                return
+                # User was looking at the image which was modified ('Show Offsets' is on), so we must take into account any offsets already applied:
+                _, y, x = self.click_coordinates
+                self.click_coordinates = (self.z_index + self.surface_adjuster_offsets[y, x], y, x)
+
             bounds_affected = None
             # Toggle node:
             existing_index = self.near_existing_surface_adjuster_node(img_coords)
@@ -795,8 +797,9 @@ class Klepar:
             else:
                 self.surface_adjuster_tri = None
 
+            # Updating canvas in real-time is too slow (even with bounds affected) so it is disabled here - we have a button for updating everything now.
             # if bounds_affected is not None:
-            #     self.update_surface_adjuster_offsets(bounds_affected)  # slooooow
+            #     self.update_surface_adjuster_offsets(bounds_affected)
 
 
     def near_existing_surface_adjuster_node(self, img_coords):
