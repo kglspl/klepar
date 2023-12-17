@@ -831,6 +831,8 @@ class Klepar:
     def threaded_update_surface_adjuster_offsets(self):
         if self.surface_adjuster_tri is None:
             self.update_log("No surface adjuster triangulation available")
+            self.surface_adjuster_offsets[:, :] = 0  # reset offsets (they might have been set from before, when triangulation still existed)
+            self.clear_slice_cache()
             return
 
         if self._threaded_update_surface_adjuster_offsets_running:
