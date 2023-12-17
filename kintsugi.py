@@ -1460,14 +1460,17 @@ Released under the MIT license.
 
         self.stride = max(1, int(arguments.stride)) if arguments.stride else 1
 
-        self.canvas.pack()
-        self.canvas.update()
+        for c in [self.canvas, self.canvas_x, self.canvas_y, self.canvas_z]:
+            c.pack()
+            c.update()
 
         if arguments.h5fs_file:
             self.load_data(h5_filename=arguments.h5fs_file, h5_axes_seq=arguments.axes, h5_roi=arguments.roi, h5_scroll_filename=arguments.h5fs_scroll)
 
         self.surface_adjust_filename = arguments.surface_adjust_file if arguments.surface_adjust_file else None
         self.load_surface_adjust_file()
+
+        self.update_info_display()
 
         self.root.mainloop()
         self.on_exit()
