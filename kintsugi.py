@@ -751,7 +751,7 @@ class Klepar:
 
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Surface Position: ({surface_x}, {surface_y}, offset {offset})")
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset})")
 
         self.update_nav3d_display()
 
@@ -1002,17 +1002,19 @@ class Klepar:
         self.update_display_slice()
 
     def key_handler(self, ev):
-        # print(ev.keysym)
-        if ev.state == 20 and ev.keysym == 'c':
-            if not self.click_coordinates:
-                return
+        # print(repr(ev.keysym), ev.state)
+
+        # Ctrl+C or Ctrl+Insert (Copy)
+        if ev.state == 20 and ev.keysym in ['c', 'Insert']:
             try:
-                _, cursor_y, cursor_x = self.calculate_image_coordinates(self.click_coordinates)
-            except:
-                cursor_x, cursor_y = 0, 0
-            surface_x = cursor_x * self.stride + self.roi['x'][0]
-            surface_y = cursor_y * self.stride + self.roi['y'][0]
-            scroll_x, scroll_y, scroll_z, nx, ny, nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
+                pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
+                _, surface_y_px, surface_x_px = self.calculate_image_coordinates((None, ph, pw))
+                surface_x, surface_y = surface_x_px * self.stride + self.roi['x'][0], surface_y_px * self.stride + self.roi['y'][0]
+                # Get corresponding 3D coordinates:
+                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
+            except Exception as ex:
+                print(f'Copying 3D x/y/z coordinates to clipboard failed! {str(ex)}')
+                return
             print(f'Copying 3D x/y/z coordinates to clipboard: {scroll_x}, {scroll_y}, {scroll_z}')
             pyperclip.copy(f'{scroll_x}, {scroll_y}, {scroll_z}')
 
