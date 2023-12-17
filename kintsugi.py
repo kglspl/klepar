@@ -642,7 +642,7 @@ class Klepar:
             self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
-    def update_nav3d_display(self):
+    def update_center_coordinates(self):
         # Get canvas coordinates and create crosshair on the right (surface) canvas:
         pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
         self.canvas.create_line((pw-10, ph), (pw+10, ph), width=1, fill='red')
@@ -654,6 +654,11 @@ class Klepar:
 
         # Get corresponding 3D coordinates:
         scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
+        self.center_coordinates = surface_x, surface_y, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz
+
+    def update_nav3d_display(self):
+        self.update_center_coordinates()
+        surface_x, surface_y, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz = self.center_coordinates
 
         # Load images from scroll 3D data and show it on nav3d canvases:
         imgs = []
@@ -704,8 +709,6 @@ class Klepar:
         self.canvas_z.tag_raise(self.canvas_z_text)
         self.canvas_x.tag_raise(self.canvas_x_text)
         self.canvas_y.tag_raise(self.canvas_y_text)
-
-
 
     def draw_vicinity_points_on_nav3d(self,
                                         imgs, pw, ph,
@@ -1007,11 +1010,7 @@ class Klepar:
         # Ctrl+C or Ctrl+Insert (Copy)
         if ev.state == 20 and ev.keysym in ['c', 'Insert']:
             try:
-                pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
-                _, surface_y_px, surface_x_px = self.calculate_image_coordinates((None, ph, pw))
-                surface_x, surface_y = surface_x_px * self.stride + self.roi['x'][0], surface_y_px * self.stride + self.roi['y'][0]
-                # Get corresponding 3D coordinates:
-                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(surface_x, surface_y, rounded_xyz=True)
+                _, _, scroll_x, scroll_y, scroll_z, _, _, _ = self.center_coordinates
             except Exception as ex:
                 print(f'Copying 3D x/y/z coordinates to clipboard failed! {str(ex)}')
                 return
