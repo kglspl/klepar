@@ -1175,12 +1175,13 @@ Released under the MIT license.
         with h5py.File(filename, 'a') as f:
             shape = (self.dataset_shape_xyz[0], self.dataset_shape_xyz[1])
             dset = f.require_dataset("offsets", shape=shape, dtype=np.float32)
-            print('dset.shape', dset.shape)
-            print('self.surface_adjuster_offsets.shape', self.surface_adjuster_offsets.shape)
+            # print('dset.shape', dset.shape)
+            # print('self.surface_adjuster_offsets.shape', self.surface_adjuster_offsets.shape)
             x0 = self.roi['x'][0] // self.stride
             y0 = self.roi['y'][0] // self.stride
             dset[x0:x0 + self.surface_adjuster_offsets.shape[1], y0:y0 + self.surface_adjuster_offsets.shape[0]] = self.surface_adjuster_offsets.T  # output: x, y
         self.update_log(f"Saved offsets to {filename}")
+        print(f"Saved offsets to {filename}")
 
     def init_ui(self, arguments):
         self.root = tk.Tk()
