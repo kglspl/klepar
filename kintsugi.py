@@ -733,13 +733,17 @@ class Klepar:
 
         return imgs
 
-    def draw_normals_on_nav3d(self, imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz, color=(0xff, 0xff, 0x00), length=20):
+    def draw_normals_on_nav3d(self, imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz, color=(0xff, 0xff, 0x00), color_zindex=(0xff, 0x00, 0xff), length=20):
+        zindex_diff = self.z_index - self.dimz // 2
         draw = ImageDraw.Draw(imgs[0])
         draw.line((pw, ph, pw+round(scroll_nx * length), ph+round(scroll_ny * length)), fill=color)
+        draw.line((pw, ph, pw+round(scroll_nx * zindex_diff), ph+round(scroll_ny * zindex_diff)), fill=color_zindex)
         draw = ImageDraw.Draw(imgs[1])
         draw.line((pw, ph, pw+round(scroll_nz * length), ph+round(scroll_ny * length)), fill=color)
+        draw.line((pw, ph, pw+round(scroll_nz * zindex_diff), ph+round(scroll_ny * zindex_diff)), fill=color_zindex)
         draw = ImageDraw.Draw(imgs[2])
         draw.line((pw, ph, pw+round(scroll_nz * length), ph+round(scroll_nx * length)), fill=color)
+        draw.line((pw, ph, pw+round(scroll_nz * zindex_diff), ph+round(scroll_nx * zindex_diff)), fill=color_zindex)
         return imgs
 
     def update_info_display(self):
