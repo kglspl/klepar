@@ -74,7 +74,7 @@ class Klepar:
         self._threaded_update_surface_adjuster_offsets_running = False
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
-        self.ppm = PPMParser('/src/kgl/dl.ash2txt.org/full-scrolls/Scroll1.volpkg/paths/20230702185753/20230702185753.ppm', skip=4).open()
+        self.ppm = PPMParser(arguments.ppm, skip=4).open()
         self.default_masks_directory = '/src/kgl/assets/'
         self.init_ui(arguments)
 
@@ -87,6 +87,7 @@ class Klepar:
         parser.add_argument("--surface-adjust-file", help="file from which to load surface adjustment nodes and save them on each change")
         parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
         parser.add_argument("--h5fs-scroll", help="full path to scroll H5FS (.h5) file; the first dataset there will be used")
+        parser.add_argument("--ppm", help="full path to surface (PPM) file")
         return parser
 
     def parse_h5_roi_argument(self, roi, h5_axes_seq, stride):
@@ -143,7 +144,7 @@ class Klepar:
             if h5_filename:
                 self.h5_data_file = h5py.File(h5_filename, 'r')
                 dataset_name, dataset_shape, dataset_type, dataset_chunks = self._h5_get_first_dataset_info(self.h5_data_file['/'])
-                print("Opening dataset:", dataset_name, dataset_shape, dataset_type, dataset_chunks)
+                print(f"Opening {h5_filename}, dataset:", dataset_name, dataset_shape, dataset_type, dataset_chunks)
                 if dataset_type != np.uint16:
                     raise Exception(f"Don't know how to display this dataset dtype ({dataset_type}), sorry")
                 self.dataset = self.h5_data_file.require_dataset(dataset_name, shape=dataset_shape, dtype=dataset_type, chunks=dataset_chunks)
@@ -689,6 +690,9 @@ class Klepar:
         self.center_coordinates = surface_x, surface_y, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz
 
     def update_nav3d_display(self):
+        if self.voxel_data is None:
+            return
+
         self.update_center_coordinates()
         surface_x, surface_y, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz = self.center_coordinates
 
@@ -779,6 +783,9 @@ class Klepar:
         return imgs
 
     def update_info_display(self):
+        if self.voxel_data is None:
+            return
+
         self.canvas.itemconfigure(self.z_slice_text, text=f"Z-Slice: {self.z_index}")
         self.canvas.itemconfigure(self.zoom_text, text=f"Zoom: {self.zoom_level:.2f}")
         if self.click_coordinates:
@@ -926,20 +933,22 @@ class Klepar:
             # Handle unexpected input types
             raise ValueError("Input must be a tuple or an event object")
 
-        if self.voxel_data is not None:
-            # Apply the inverse of the affine transformation to the clicked coordinates
-            mat_inv = np.linalg.inv(self.mat_affine)
-            transformed_point = np.dot(mat_inv, [x, y, 1])
+        if self.voxel_data is None:
+            return 0, 0, 0
 
-            # Extract the image coordinates from the transformed point
-            img_x = int(transformed_point[0])
-            img_y = int(transformed_point[1])
+        # Apply the inverse of the affine transformation to the clicked coordinates
+        mat_inv = np.linalg.inv(self.mat_affine)
+        transformed_point = np.dot(mat_inv, [x, y, 1])
 
-            # Ensure the coordinates are within the bounds of the image
-            img_x = max(0, min(img_x, self.voxel_data.shape[2] - 1))
-            img_y = max(0, min(img_y, self.voxel_data.shape[1] - 1))
+        # Extract the image coordinates from the transformed point
+        img_x = int(transformed_point[0])
+        img_y = int(transformed_point[1])
 
-            return self.z_index, img_y, img_x
+        # Ensure the coordinates are within the bounds of the image
+        img_x = max(0, min(img_x, self.voxel_data.shape[2] - 1))
+        img_y = max(0, min(img_y, self.voxel_data.shape[1] - 1))
+
+        return self.z_index, img_y, img_x
 
     def color_pixel(self, img_coords):
         z_index, center_y, center_x = img_coords
@@ -1512,6 +1521,7 @@ Released under the MIT license.
         self.log_text['yscrollcommand'] = log_scrollbar.set
 
         self.stride = max(1, int(arguments.stride)) if arguments.stride else 1
+        print(f"Stride: {self.stride}")
 
         for c in [self.canvas, self.canvas_x, self.canvas_y, self.canvas_z]:
             c.pack()
@@ -1558,7 +1568,7 @@ class PPMParser(object):
         self.skip = skip
 
     def open(self):
-        print('Opening {}'.format(self.filename))
+        print('Opening PPM file {}'.format(self.filename))
         self.f = open(self.filename, 'rb')
         self.info, self.header_size, self.header_content = PPMParser.vcps_parse_header(self.f)
         return self
