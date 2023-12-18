@@ -17,6 +17,7 @@ import h5py
 import numpy as np
 from PIL import Image, ImageTk, ImageDraw
 import pyperclip
+import scipy
 from scipy.spatial import Delaunay
 from skimage.draw import line_aa
 import tifffile
@@ -319,6 +320,37 @@ class Klepar:
                     self.update_log(f"Error saving mask as Zarr: {e}")
         else:
             self.update_log("No mask data to save.")
+
+    def save_mask_3d(self):
+        if self.mask_data is None:
+            self.update_log("No mask data to save.")
+            return
+
+        # Construct the default file name for saving
+        default_save_file_name = f"{self.default_masks_directory}mask_xxx.h5"
+        # Open the file dialog with the proposed file name
+        save_file_path = filedialog.asksaveasfilename(
+            initialdir=self.default_masks_directory,
+            title="Select Directory to Save Mask (H5FS)",
+            initialfile=default_save_file_name,
+            filetypes=[("H5 mask files", "mask_*.h5")]
+        )
+
+        if not save_file_path:
+            return
+
+        try:
+            with h5py.File(save_file_path, 'a') as f:
+                shape = (self.dataset_shape_xyz[2], self.dataset_shape_xyz[1] * self.stride, self.dataset_shape_xyz[0] * self.stride)
+                dset = f.require_dataset('maskzyx', shape, dtype=bool)
+                if self.stride != 1:
+                    mask = scipy.ndimage.zoom(self.mask_data, (1, self.stride, self.stride), order=0, grid_mode=True)
+                else:
+                    mask = self.mask_data
+                dset[:, self.roi['y'][0]:self.roi['y'][0]+mask.shape[1], self.roi['x'][0]:self.roi['x'][0]+mask.shape[2]] = mask
+            self.update_log(f"Mask saved as H5FS in {save_file_path}")
+        except Exception as e:
+            self.update_log(f"Error saving mask as H5FS: {e}")
 
     def save_flattened_mask(self):
         if self.mask_data is None:
@@ -1256,10 +1288,10 @@ Released under the MIT license.
         load_mask_button.pack(side=tk.LEFT, padx=2)
         self.create_tooltip(load_mask_button, "Load Ink Mask")
 
-        save_button = ttk.Button(self.toolbar_frame, image=save_icon, command=self.save_image)
+        save_button = ttk.Button(self.toolbar_frame, image=save_icon, command=self.save_mask_3d)
         save_button.image = save_icon
         save_button.pack(side=tk.LEFT, padx=2)
-        self.create_tooltip(save_button, "Save Zarr 3D Mask")
+        self.create_tooltip(save_button, "Save H5FS 3D Mask")
 
         save_button = ttk.Button(self.toolbar_frame, image=save_icon, command=self.save_flattened_mask)
         save_button.image = save_icon
