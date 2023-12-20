@@ -1080,6 +1080,12 @@ class Klepar:
             self.update_info_display()
             return
 
+        # Ctrl+S (save flattened mask)
+        if ev.state == 20 and ev.keysym == 's':
+            print(f'Saving flattened mask')
+            self.save_flattened_mask()
+            return
+
     def toggle_mask(self):
         # Toggle the state
         self.show_mask = not self.show_mask
