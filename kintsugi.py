@@ -73,6 +73,7 @@ class Klepar:
         self.surface_adjuster_tri = None
         self.roi = {}
         self._threaded_update_surface_adjuster_offsets_running = False
+        self.rotate_3d_to_normal = False  # with the whole 3 canvases, this is sloooow - we limited to smaller display but need to center it; but, initial results are not that promising
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
         self.ppm = PPMParser(arguments.ppm, skip=4).open()
@@ -699,20 +700,35 @@ class Klepar:
 
         # Load images from scroll 3D data and show it on nav3d canvases:
         imgs = []
-        for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
-            pw, ph = c.winfo_width() // 2, c.winfo_height() // 2
-            if i == 0:
-                img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x-pw:scroll_x+pw, scroll_z] // 256).astype(np.uint8)
-            elif i == 1:
-                img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
-            else:
-                img_data = (self.scroll_dataset[scroll_y, scroll_x-ph:scroll_x+ph, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
-            img = Image.fromarray(img_data).convert('RGBA')
-            imgs.append(img)
+        if self.rotate_3d_to_normal:
+            pw, ph = self.canvas_z.winfo_width() // 2, self.canvas_z.winfo_height() // 2
+            max_dist = min(50, max(pw, ph))
+            rotated_scroll_cube = self.get_cube_rotated_to_normal(scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz, max_dist)
+            print(rotated_scroll_cube.shape, max_dist, pw, ph)
+            for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
+                if i == 0:
+                    img_data = (rotated_scroll_cube[max_dist-ph:max_dist+ph, max_dist-pw:max_dist+pw, max_dist] // 256).astype(np.uint8)
+                elif i == 1:
+                    img_data = (rotated_scroll_cube[max_dist-ph:max_dist+ph, max_dist, max_dist-pw:max_dist+pw] // 256).astype(np.uint8)
+                else:
+                    img_data = (rotated_scroll_cube[max_dist, max_dist-ph:max_dist+ph, max_dist-pw:max_dist+pw] // 256).astype(np.uint8)
+                img = Image.fromarray(img_data).convert('RGBA')
+                imgs.append(img)
+        else:
+            for i, c in enumerate([self.canvas_z, self.canvas_x, self.canvas_y]):
+                pw, ph = c.winfo_width() // 2, c.winfo_height() // 2
+                if i == 0:
+                    img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x-pw:scroll_x+pw, scroll_z] // 256).astype(np.uint8)
+                elif i == 1:
+                    img_data = (self.scroll_dataset[scroll_y-ph:scroll_y+ph, scroll_x, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
+                else:
+                    img_data = (self.scroll_dataset[scroll_y, scroll_x-ph:scroll_x+ph, scroll_z-pw:scroll_z+pw] // 256).astype(np.uint8)
+                img = Image.fromarray(img_data).convert('RGBA')
+                imgs.append(img)
 
-        # Draw vicinity points on images while still in Image format:
-        imgs = self.draw_vicinity_points_on_nav3d(imgs, pw, ph, surface_x, surface_y, scroll_x, scroll_y, scroll_z)
-        imgs = self.draw_normals_on_nav3d(imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz)
+            # Draw vicinity points on images while still in Image format:
+            imgs = self.draw_vicinity_points_on_nav3d(imgs, pw, ph, surface_x, surface_y, scroll_x, scroll_y, scroll_z)
+            imgs = self.draw_normals_on_nav3d(imgs, pw, ph, scroll_nx, scroll_ny, scroll_nz)
 
         # Render photoimages on nav3d canvases:
         self.canvas_3d_photoimgs = []  # PhotoImage's must be saved on instance or they will be garbage collected before displayed
@@ -799,8 +815,6 @@ class Klepar:
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
             self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset:.2f})")
-
-        self.update_nav3d_display()
 
     def on_canvas_click(self, event):
         self.save_state()
@@ -1034,6 +1048,7 @@ class Klepar:
             delta = 1 if delta > 0 else -1
             self.z_index = max(0, min(self.z_index + delta, self.dimz - 1))
             self.update_display_slice()
+            self.update_nav3d_display()
 
     '''
     def zoom(self, delta):
@@ -1086,6 +1101,7 @@ class Klepar:
             self.z_index = self.dimz // 2
             self.update_display_slice()
             self.update_info_display()
+            self.update_nav3d_display()
             return
 
         # Ctrl+0 (reset zoom)
@@ -1273,6 +1289,63 @@ Released under the MIT license.
             dset[x0:x0 + self.surface_adjuster_offsets.shape[1], y0:y0 + self.surface_adjuster_offsets.shape[0]] = self.surface_adjuster_offsets.T  # output: x, y
         self.update_log(f"Saved offsets to {filename}")
         print(f"Saved offsets to {filename}")
+
+    def get_cube_rotated_to_normal(self, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz, max_dist, scale_down=1):
+        print('start')
+        padding_d = math.ceil(math.sqrt((max_dist ** 2) * 3))
+        R = self.get_rotation_matrix_for_normal_vector(scroll_nx, scroll_ny, scroll_nz, 0.01)
+        M = np.linalg.inv(R)
+        shift = np.array([
+            [1, 0, 0, padding_d],  # y
+            [0, 1, 0, padding_d],  # x
+            [0, 0, 1, padding_d],  # z
+            [0, 0, 0,         1],
+        ])
+        # when moving back, we only move so that output_shape will take care of cutting the correct matrix for us
+        unshift = np.array([
+            [1, 0, 0, -max_dist],
+            [0, 1, 0, -max_dist],
+            [0, 0, 1, -max_dist],
+            [0, 0, 0,          1],
+        ])
+        scale_matrix = np.array([
+            [scale_down,          0,          0, 0],
+            [         0, scale_down,          0, 0],
+            [         0,          0, scale_down, 0],
+            [         0,          0,          0, 1],
+        ])
+        M = M @ scale_matrix
+
+        a = self.scroll_dataset[scroll_y-padding_d:scroll_y+padding_d+1, scroll_x-padding_d:scroll_x+padding_d+1, scroll_z-padding_d:scroll_z+padding_d+1]
+
+        output_shape=np.array([2*max_dist+1, 2*max_dist+1, 2*max_dist+1])
+        b = scipy.ndimage.affine_transform(a, shift @ M @ unshift, output_shape=output_shape)
+        print(b.mean())
+        print('end')
+        return b
+
+    @staticmethod
+    def get_rotation_matrix_for_normal_vector(nx, ny, nz, e=0.01):
+        d = np.sqrt(nx*nx+ny*ny)
+        if d < e:
+            R1 = np.identity(4)
+        else:
+            R1 = [
+                [ nx/d, ny/d, 0, 0],
+                [-ny/d, nx/d, 0, 0],
+                [    0,    0, 1, 0],
+                [    0,    0, 0, 1],
+            ]
+
+        nxy = np.sqrt(nx*nx + ny*ny)
+        R2 = [
+            [ nz, 0, -nxy, 0],
+            [  0, 1,    0, 0],
+            [nxy, 0,   nz, 0],
+            [  0, 0,    0, 1],
+        ]
+        R = np.dot(R2, R1)
+        return R
 
     def init_ui(self, arguments):
         self.root = tk.Tk()
@@ -1562,6 +1635,7 @@ Released under the MIT license.
         self.load_surface_adjust_file()
 
         self.update_info_display()
+        self.update_nav3d_display()
 
         self.root.mainloop()
         self.on_exit()
