@@ -893,6 +893,22 @@ class Klepar:
         thread = threading.Thread(target=self.update_surface_adjuster_offsets, args=(None,))
         thread.start()
 
+    def print_3d_bounding_box(self):
+        resolution = 10
+        # initial values:
+        max_scroll_x, max_scroll_y, max_scroll_z, _, _, _ = self.ppm.get_3d_coords(self.roi['x'][0], self.roi['y'][0], rounded_xyz=True)
+        min_scroll_x, min_scroll_y, min_scroll_z = max_scroll_x, max_scroll_y, max_scroll_z
+
+        for sx in range(self.roi['x'][0], self.roi['x'][1], resolution):
+            for sy in range(self.roi['y'][0], self.roi['y'][1], resolution):
+                scroll_x, scroll_y, scroll_z, _, _, _ = self.ppm.get_3d_coords(sx, sy, rounded_xyz=True)
+                min_scroll_x, max_scroll_x = min(min_scroll_x, scroll_x), max(max_scroll_x, scroll_x)
+                min_scroll_y, max_scroll_y = min(min_scroll_y, scroll_y), max(max_scroll_y, scroll_y)
+                min_scroll_z, max_scroll_z = min(min_scroll_z, scroll_z), max(max_scroll_z, scroll_z)
+
+        print('3d bbox:', (min_scroll_x, max_scroll_x, min_scroll_y, max_scroll_y, min_scroll_z, max_scroll_z))
+        self.update_log('3d bbox:' + str((min_scroll_x, max_scroll_x, min_scroll_y, max_scroll_y, min_scroll_z, max_scroll_z)))
+
     def update_surface_adjuster_offsets(self, bounds_affected):
         # given the triangulation (in self.surface_adjuster_tri) we need to update offsets
         # this is probably not the most efficient implementation...
@@ -1328,6 +1344,11 @@ Released under the MIT license.
         surface_adjuster_offsets_button.image = surface_adjuster_offsets_icon
         surface_adjuster_offsets_button.pack(side=tk.LEFT, padx=2)
         self.create_tooltip(surface_adjuster_offsets_button, "Update Surface Adjuster Offsets")
+
+        # surface_adjuster_offsets_button = ttk.Button(self.toolbar_frame, image=surface_adjuster_offsets_icon, command=)
+        # surface_adjuster_offsets_button.image = surface_adjuster_offsets_icon
+        # surface_adjuster_offsets_button.pack(side=tk.LEFT, padx=2)
+        # self.create_tooltip(surface_adjuster_offsets_button, "Print 3D bounding box")
 
         # Brush tool button
         brush_button = ttk.Radiobutton(self.toolbar_frame, image=brush_icon, variable=self.mode, value="pencil")
