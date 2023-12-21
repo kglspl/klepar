@@ -68,7 +68,7 @@ class Klepar:
         self.format = None
         self.canvas = None
         self.stride = 1
-        self.surface_adjuster_offsets = None
+        self.surface_adjuster_offsets = None  # dimension is the same as voxel_data (only visible part of data; 0,0 is top left; one voxel per each displayed pixel), address with: [y, x]
         self.surface_adjuster_nodes = []
         self.surface_adjuster_tri = None
         self.roi = {}
@@ -820,7 +820,7 @@ class Klepar:
         elif mode == "surface-adjuster":
             if self.show_surface_offsets:
                 # User was looking at the image which was modified ('Show Offsets' is on), so we must take into account any offsets already applied:
-                _, y, x = self.click_coordinates
+                _, y, x = img_coords
                 self.click_coordinates = (self.z_index + self.surface_adjuster_offsets[y, x], y, x)
 
             bounds_affected = None
