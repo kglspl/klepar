@@ -77,6 +77,7 @@ class Klepar:
         arg_parser = self.init_argparse()
         arguments = arg_parser.parse_args()
         self.ppm = PPMParser(arguments.ppm, skip=4).open()
+        self.z_scroll_step = arguments.z_scroll_step
         self.default_masks_directory = '/src/kgl/assets/'
         self.init_ui(arguments)
 
@@ -90,6 +91,7 @@ class Klepar:
         parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
         parser.add_argument("--h5fs-scroll", help="full path to scroll H5FS (.h5) file; the first dataset there will be used")
         parser.add_argument("--ppm", help="full path to surface (PPM) file")
+        parser.add_argument("--z-scroll-step", help="the step at which mouse scroll changes the z-index", type=int, default=1)
         return parser
 
     def parse_h5_roi_argument(self, roi, h5_axes_seq, stride):
@@ -1045,7 +1047,7 @@ class Klepar:
     def scroll(self, delta):
         if self.voxel_data is not None:
             # Update the z_index based on scroll direction
-            delta = 1 if delta > 0 else -1
+            delta = self.z_scroll_step if delta > 0 else -self.z_scroll_step
             self.z_index = max(0, min(self.z_index + delta, self.dimz - 1))
             self.update_display_slice()
             self.update_nav3d_display()
