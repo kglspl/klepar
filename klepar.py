@@ -294,7 +294,12 @@ class Klepar:
             part = mask[x0:x0 + self.mask_data.shape[2], y0:y0 + self.mask_data.shape[1]].T
             print('part', part.shape, part.dtype, part.min(), part.max())
 
-            mask_data = np.stack([part for _ in range(self.mask_data.shape[0])], axis=0)
+            # this loads a mask from the tiff to all the layers of our 3D mask - which sounds good in theory, but
+            # makes it very hard to change the mask
+            # mask_data = np.stack([part for _ in range(self.mask_data.shape[0])], axis=0)
+            # self.mask_data = mask_data
+            mask_data = np.zeros(self.mask_data.shape)
+            mask_data[self.dimz // 2, :, :] = part
             self.mask_data = mask_data
 
         except Exception as e:
