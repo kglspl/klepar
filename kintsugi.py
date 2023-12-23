@@ -16,7 +16,7 @@ import h5py
 
 Image.MAX_IMAGE_PIXELS = None
 
-class VesuviusKintsugi:
+class Klepar:
     def __init__(self):
         self.overlay_alpha = 255
         self.barrier_mask = None  # New mask to act as a barrier for flood fill
@@ -58,7 +58,7 @@ class VesuviusKintsugi:
 
     @staticmethod
     def init_argparse():
-        parser = argparse.ArgumentParser(usage="%(prog)s [OPTION] [FILE]...", description="Visualize and help annotate Vesuvian Challenge data.")
+        parser = argparse.ArgumentParser(usage="%(prog)s [OPTION] [FILE]...", description="Visualize and help annotate Vesuvius Challenge data.")
         # parser.add_argument("--help", action="help")
         parser.add_argument("--h5fs-file", help="full path to H5FS (.h5) file; the first dataset there will be used")
         parser.add_argument("--axes", help="axes sequence in H5FS dataset", choices=['xyz', 'yxz', 'xzy', 'zxy', 'yzx', 'zyx'], default="xyz")
@@ -161,7 +161,7 @@ class VesuviusKintsugi:
                 self.threshold = [10 for _ in range(self.dimz)]
             self.initial_load = True
             self.update_display_slice()
-            self.root.title(f"Vesuvius Kintsugi - {self.file_name}")
+            self.root.title(f"Klepar - {self.file_name}")
             self.bucket_layer_slider.configure(from_=0, to=self.dimz - 1)
             self.bucket_layer_slider.set(0)
             self.update_log(f"Data loaded successfully.")
@@ -692,41 +692,9 @@ class VesuviusKintsugi:
         help_text_widget.pack(side="left", fill="both", expand=True)
 
 
-        info_text = """Vesuvius Kintsugi: A tool for labeling 3D Zarr images for the Vesuvius Challenge (scrollprize.org).
-
-Commands Overview:
-- Icons (Top, Left to Right):
-  1. Open Zarr 3D Image: Load image data from a Zarr directory.
-  2. Open Zarr 3D Label: Load label data from a Zarr directory.
-  3. Save Zarr 3D Label: Save current label data to a Zarr file.
-  4. Undo Last Action: Revert the last change made to the label or barrier.
-  5. Brush Tool: Edit labels or barriers with a freehand brush.
-  6. Eraser Tool: Erase parts of the label or barrier.
-  7. Edit Barrier: Toggle between editing the label or the barrier mask.
-  8. Pencil Size: Adjust the size of the brush and eraser tools.
-  9. 3D Flood Fill Tool: Fill an area with the label based on similarity.
-  10. STOP: Interrupt the ongoing flood fill operation.
-  11. Info: Display information and usage tips.
-
-- Sliders and Toggles (Bottom):
-  1. Toggle Label: Show or hide the label overlay.
-  2. Toggle Barrier: Show or hide the barrier overlay.
-  3. Opacity: Adjust the transparency of the label and barrier overlays.
-  4. Toggle Image: Show or hide the image data.
-  5. Bucket Layer: Select the layer to adjust its specific flood fill threshold.
-  6. Bucket Threshold: Set the threshold for the flood fill tool.
-  7. Max Propagation: Limit the extent of the flood fill operation.
-
-Usage Tips:
-- Pouring Gold: The 3D flood fill algorithm labels contiguous areas based on voxel intensity and the set threshold.
-    The gold does not propagate into the barrier.
-- Navigation: Click and drag with the left mouse button to pan the image.
-- Zoom: Use CTRL+Scroll to zoom in and out. Change the Z-axis slice with the mouse wheel.
-- Editing Modes: Use the "Edit Barrier" toggle to switch between modifying the label and the barrier mask.
-- Overlay Visibility: Use the toggle buttons to show or hide the label, barrier, and image data for easier editing.
-- Tool Size: Use the "Pencil Size" slider to adjust the size of the brush and eraser.
-
-Created by Dr. Giorgio Angelotti, Vesuvius Kintsugi is designed for efficient 3D voxel image labeling. Released under the MIT license.
+        info_text = """Klepar: A tool for exploring and adjusting PPM surfaces for the Vesuvius Challenge (scrollprize.org).
+Based on Vesuvian Kintsugi (created by Dr. Giorgio Angelotti, Vesuvius Kintsugi is designed for efficient 3D voxel image labeling: https://github.com/giorgioangel/vesuvius-kintsugi).
+Released under the MIT license.
 """
         # Insert the help text into the text widget and disable editing
         help_text_widget.insert("1.0", info_text)
@@ -784,7 +752,7 @@ Created by Dr. Giorgio Angelotti, Vesuvius Kintsugi is designed for efficient 3D
     def init_ui(self, arguments):
         self.root = tk.Tk()
         #self.root.iconbitmap("./icons/favicon.ico")
-        self.root.title("Vesuvius Kintsugi")
+        self.root.title("Vesuvius Klepar")
 
         # Use a ttk.Style object to configure style aspects of the application
         style = ttk.Style()
@@ -1013,4 +981,4 @@ Created by Dr. Giorgio Angelotti, Vesuvius Kintsugi is designed for efficient 3D
         self.on_exit()
 
 if __name__ == "__main__":
-    editor = VesuviusKintsugi()
+    editor = Klepar()
