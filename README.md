@@ -4,7 +4,7 @@
 
 Klepar (english pronounciation `kleh-phar`) is a tool for exploring and adjusting flattened 2D surfaces for purposes of Vesuvius Challenge (https://scrollprize.org/).
 
-It started its life as a fork of [Vesuvius Kintsugi](https://github.com/giorgioangel/vesuvius-kintsugi), whose purpose is labeling 3D voxel data extracted from the Herculaneum scrolls. This functionality still exists in this software (it was not intentionally disabled) but it is not a focus of this fork. The masks / labels themselves are however well supported in Klepar and it adds support fof previewing and saving flattened masks as TIFFs too.
+It started its life as a fork of [Vesuvius Kintsugi](https://github.com/giorgioangel/vesuvius-kintsugi), whose purpose is labeling 3D voxel data extracted from the Herculaneum scrolls. This functionality still exists in this software (it was not intentionally disabled) but it is not a focus of this fork. The masks / labels themselves are however well supported in Klepar and it adds support for previewing and saving flattened masks as TIFFs too.
 
 An inspiration for UI came from another great software, [Khartes](https://github.com/KhartesViewer/khartes), which is a great tool for creating segments (fragments) from 3D scroll data.
 
