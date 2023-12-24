@@ -1,7 +1,20 @@
-numpy
-zarr
-pillow
-tk
-ttkthemes
-tifffile
-h5py
+-i https://pypi.org/simple
+asciitree==0.3.3
+fasteners==0.19; python_version >= '3.6'
+geometer==0.3.5
+h5py==3.10.0
+imageio==2.33.1; python_version >= '3.8'
+lazy-loader==0.3; python_version >= '3.7'
+networkx==3.1; python_version >= '3.8'
+numcodecs==0.12.1; python_version >= '3.8'
+numpy==1.24.4
+packaging==23.2; python_version >= '3.7'
+pillow==10.1.0
+pyperclip==1.8.2
+pywavelets==1.4.1; python_version >= '3.8'
+scikit-image==0.21.0
+scipy==1.10.1
+tifffile==2023.7.10
+tk==0.1.0
+ttkthemes==3.2.2
+zarr==2.16.1
