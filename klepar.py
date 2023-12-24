@@ -704,6 +704,8 @@ class Klepar:
 
         self.update_center_coordinates()
         surface_x, surface_y, scroll_x, scroll_y, scroll_z, scroll_nx, scroll_ny, scroll_nz = self.center_coordinates
+        if (scroll_x, scroll_y, scroll_z) == (0, 0, 0):  # no data
+            return
 
         # Load images from scroll 3D data and show it on nav3d canvases:
         imgs = []
