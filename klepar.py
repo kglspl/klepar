@@ -684,6 +684,8 @@ class Klepar:
             self.canvas.tag_raise(self.zoom_text)
             self.canvas.tag_raise(self.cursor_pos_text)
 
+            self.update_center_coordinates()
+
     def update_center_coordinates(self):
         # Get canvas coordinates and create crosshair on the right (surface) canvas:
         pw, ph = self.canvas.winfo_width() // 2, self.canvas.winfo_height() // 2
