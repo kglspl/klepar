@@ -83,12 +83,12 @@ class Klepar:
 
     @staticmethod
     def init_argparse():
-        parser = argparse.ArgumentParser(usage="%(prog)s [OPTION] [FILE]...", description="Visualize and help annotate Vesuvius Challenge data.")
+        parser = argparse.ArgumentParser(usage="%(prog)s [OPTION] [FILE]...", description="Explore and adjust Vesuvius Challenge segment data.")
         parser.add_argument("--h5fs-file", help="full path to H5FS (.h5) file; the first dataset there will be used", required=True)
         parser.add_argument("--axes", help="axes sequence in H5FS dataset", choices=['xyz', 'yxz', 'xzy', 'zxy', 'yzx', 'zyx'], default="xyz")
         parser.add_argument("--roi", help="region of interest (in dataset coords and axes!) to be loaded into memory and used, in x0-x1,y0-y1,z0-y1 notation (e.g. '0-1000,0-700,0-50')", default="0-1000,0-700,0-50")
         parser.add_argument("--surface-adjust-file", help="file from which to load surface adjustment nodes and save them on each change")
-        parser.add_argument("--stride", help="stride to help interpred roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
+        parser.add_argument("--stride", help="stride to help interpret roi, adjust coordinates and save surface adjuster offsets resized to correct dimensions")
         parser.add_argument("--h5fs-scroll", help="full path to scroll H5FS (.h5) file; the first dataset there will be used", required=True)
         parser.add_argument("--ppm", help="full path to surface (PPM) file", required=True)
         parser.add_argument("--z-scroll-step", help="the step at which mouse scroll changes the z-index", type=int, default=1)
