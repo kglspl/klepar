@@ -830,7 +830,8 @@ class Klepar:
 
             surface_x = cursor_x * self.stride + self.roi['x'][0]
             surface_y = cursor_y * self.stride + self.roi['y'][0]
-            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset:.2f})")
+            value = self.voxel_data[self.z_index, cursor_y, cursor_x]
+            self.canvas.itemconfigure(self.cursor_pos_text, text=f"Cursor Surface Position: ({surface_x}, {surface_y}, offset {offset:.2f}, value {value})")
 
     def on_canvas_click(self, event):
         self.save_state()
