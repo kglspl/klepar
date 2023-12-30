@@ -284,9 +284,12 @@ class Klepar:
         try:
             im = Image.open(mask_filename)
             # self.mask_data = np.zeros(shape=(self.dataset.shape[0], self.dataset.shape[1]))  # axes: x, y
-            d = 4 // self.stride
-            if d != 1:
+            if self.stride < 4:
+                d = 4 // self.stride
                 im = im.resize((im.size[0] * d, im.size[1] * d), Image.NEAREST)
+            elif self.stride > 4:
+                d = self.stride // 4
+                im = im.resize((round(im.size[0] / d), round(im.size[1] / d)), Image.NEAREST)
             mask = np.array(im, dtype=np.uint8).T / 255
             print('mask', mask.shape, mask.dtype, mask.min(), mask.max())
             assert len(mask.shape) == 2
