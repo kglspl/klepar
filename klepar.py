@@ -61,6 +61,7 @@ class Klepar:
         self.show_image = True
         self.show_prediction = True
         self.show_surface_offsets = True
+        self.monochrome = False
         self.initial_load = True
         self.mat_affine = np.eye(3)
         self.mat_affine[0, 0] = self.mat_affine[1, 1] = self.zoom_level
@@ -135,6 +136,10 @@ class Klepar:
                 img_data = np.take_along_axis(self.voxel_data, indexes, axis=0)[0, :, :]
             else:
                 img_data = self.voxel_data[z_index, :, :]
+
+        if self.monochrome:
+            img_data[img_data <= 127] = 0
+            img_data[img_data > 127] = 255
 
         img = Image.fromarray(img_data).convert('RGBA')
         self.slice_cache[z_index] = img
@@ -1185,6 +1190,14 @@ class Klepar:
         self.update_display_slice()
         self.update_log(f"Surface offsets {'shown' if self.show_surface_offsets else 'hidden'}.\n")
 
+    def toggle_monochrome(self):
+        self.monochrome = not self.monochrome
+        # Update the variable for the Checkbutton
+        self.monochrome_var.set(self.monochrome)
+        # Update the display to reflect the new state
+        self.clear_slice_cache()
+        self.update_display_slice()
+
     def toggle_editing_mode(self):
         # Toggle between editing label and barrier
         self.editing_barrier = not self.editing_barrier
@@ -1551,6 +1564,7 @@ Released under the MIT license.
         self.show_image_var = tk.BooleanVar(value=self.show_image)
         self.show_prediction_var = tk.BooleanVar(value=self.show_prediction)
         self.show_surface_offsets_var = tk.BooleanVar(value=self.show_surface_offsets)
+        self.monochrome_var = tk.BooleanVar(value=self.monochrome)
 
         # Create a frame to hold the toggle buttons
         toggle_frame = tk.Frame(self.root)
@@ -1569,8 +1583,11 @@ Released under the MIT license.
         toggle_prediction_button = ttk.Checkbutton(toggle_frame, text="Prediction", command=self.toggle_prediction, variable=self.show_prediction_var)
         toggle_prediction_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
-        toggle_prediction_button = ttk.Checkbutton(toggle_frame, text="Surface offsets", command=self.toggle_surface_offsets, variable=self.show_surface_offsets_var)
-        toggle_prediction_button.pack(side=tk.LEFT, padx=5, anchor='s')
+        toggle_offsets_button = ttk.Checkbutton(toggle_frame, text="Surface offsets", command=self.toggle_surface_offsets, variable=self.show_surface_offsets_var)
+        toggle_offsets_button.pack(side=tk.LEFT, padx=5, anchor='s')
+
+        toggle_monochrome_button = ttk.Checkbutton(toggle_frame, text="B/W", command=self.toggle_monochrome, variable=self.monochrome_var)
+        toggle_monochrome_button.pack(side=tk.LEFT, padx=5, anchor='s')
 
         # Slider for adjusting the alpha (opacity)
         self.alpha_var = tk.IntVar(value=self.overlay_alpha)
