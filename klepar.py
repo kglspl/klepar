@@ -78,6 +78,7 @@ class Klepar:
         arguments = arg_parser.parse_args()
         self.ppm = PPMParser(arguments.ppm, skip=4).open()
         self.z_scroll_step = arguments.z_scroll_step
+        self.z_center = int(arguments.z_center) if arguments.z_center else None
         self.default_masks_directory = '/src/kgl/assets/'
         self.init_ui(arguments)
 
@@ -92,6 +93,7 @@ class Klepar:
         parser.add_argument("--h5fs-scroll", help="full path to scroll H5FS (.h5) file; the first dataset there will be used", required=True)
         parser.add_argument("--ppm", help="full path to surface (PPM) file", required=True)
         parser.add_argument("--z-scroll-step", help="the step at which mouse scroll changes the z-index", type=int, default=1)
+        parser.add_argument("--z-center", help="the central z-index (the initial and the one that Ctrl+. returns to)", type=int, default=1)
         return parser
 
     def parse_h5_roi_argument(self, roi, h5_axes_seq, stride):
@@ -206,7 +208,7 @@ class Klepar:
             self.mask_data = np.zeros((self.dimz,self.dimy,self.dimx), dtype=np.uint8)
             self.barrier_mask = np.zeros_like(self.mask_data, dtype=np.uint8)
             self.surface_adjuster_offsets = np.zeros(shape=(self.dimy, self.dimx), dtype=np.float32)
-            self.z_index = self.dimz // 2
+            self.z_index = self.dimz // 2 if self.z_center is None else self.z_center
             if self.voxel_data is not None:
                 self.threshold = [10 for _ in range(self.dimz)]
             self.initial_load = True
@@ -299,7 +301,7 @@ class Klepar:
             # mask_data = np.stack([part for _ in range(self.mask_data.shape[0])], axis=0)
             # self.mask_data = mask_data
             mask_data = np.zeros(self.mask_data.shape)
-            mask_data[self.dimz // 2, :, :] = part
+            mask_data[self.dimz // 2 if self.z_center is None else self.z_center, :, :] = part
             self.mask_data = mask_data
 
         except Exception as e:
@@ -1109,7 +1111,7 @@ class Klepar:
         # Ctrl+. (reset z-index)
         if ev.state == 20 and ev.keysym == 'period':
             print(f'Resetting z-index')
-            self.z_index = self.dimz // 2
+            self.z_index = self.dimz // 2 if self.z_center is None else self.z_center
             self.update_display_slice()
             self.update_info_display()
             self.update_nav3d_display()
